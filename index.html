@@ -1,750 +1,385 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-<title>Você é especial</title>
-
-<!-- Only external resource used: a webfont, for the emotional typography of the final message. No external images are used — every visual element below is drawn with SVG/CSS/Canvas. -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500;1,600&family=Jost:wght@300;400&display=swap" rel="stylesheet">
-
-<style>
-  /* ============================================================
-     TOKENS — palette pulled straight from the reference artwork:
-     a near-black violet void, glowing amethyst petals, a warm
-     ivory throat, and deep emerald foliage.
-     ============================================================ */
-  :root{
-    --void:        #050212;
-    --void-2:      #0c0620;
-    --nebula-1:    #2a0e52;
-    --nebula-2:    #1b0a38;
-    --petal-pale:  #f1e4ff;
-    --petal-light: #d3aefc;
-    --petal-mid:   #a879f2;
-    --petal-deep:  #6f37c9;
-    --petal-ink:   #4a1f96;
-    --throat:      #fbf6ff;
-    --stamen:      #ffe9a8;
-    --leaf-hi:     #6fe08a;
-    --leaf-mid:    #2fae5c;
-    --leaf-dark:   #0f5a34;
-    --foliage-1:   #7c3fd6;
-    --foliage-2:   #582aa8;
-    --foliage-3:   #34156b;
-    --spark-warm:  #ffe9b0;
-    --spark-cool:  #d9b6ff;
-    --glow:        #b57bf5;
-  }
-
-  *{ box-sizing:border-box; }
-
-  html,body{
-    margin:0; padding:0; width:100%; height:100%;
-    background:var(--void);
-    overflow:hidden;
-    -webkit-tap-highlight-color:transparent;
-  }
-
-  body{
-    display:flex; align-items:center; justify-content:center;
-    font-family:'Jost', sans-serif;
-  }
-
-  /* Full-bleed stage. Everything lives on top of each other:
-     0) deep ambient glow (CSS)
-     1) drifting light-mote canvas (JS)
-     2) the SVG artwork (flowers/leaves)
-     3) the closing message
-  */
-  #stage{
-    position:relative;
-    width:100vw; height:100dvh;
-    overflow:hidden;
-    background:radial-gradient(ellipse 120% 90% at 50% 115%, var(--nebula-1) 0%, var(--void-2) 45%, var(--void) 78%);
-  }
-
-  /* Soft breathing aura behind the whole scene — very subtle,
-     it "reinforces the sense of enchantment" without stealing focus. */
-  #aura{
-    position:absolute; inset:0;
-    background:radial-gradient(circle at 50% 62%, rgba(181,123,245,0.35) 0%, rgba(181,123,245,0.12) 30%, transparent 65%);
-    opacity:0;
-    animation:auraIn 3s ease-out forwards, auraBreathe 6s ease-in-out 3s infinite;
-    pointer-events:none;
-    mix-blend-mode:screen;
-  }
-  @keyframes auraIn{ to{ opacity:1; } }
-  @keyframes auraBreathe{
-    0%,100%{ transform:scale(1);   opacity:0.85; }
-    50%    { transform:scale(1.08);opacity:1;    }
-  }
-
-  canvas#motes{
-    position:absolute; inset:0; width:100%; height:100%;
-    pointer-events:none;
-  }
-
-  #art-wrap{
-    position:absolute; inset:0;
-    display:flex; align-items:flex-end; justify-content:center;
-    padding-bottom:2vh;
-  }
-
-  svg#art{
-    width:min(92vw, 62vh, 560px);
-    height:auto;
-    max-height:92dvh;
-    overflow:visible;
-    filter:drop-shadow(0 0 40px rgba(150,90,230,0.25));
-  }
-
-  /* every drawable primitive starts invisible; JS reveals them
-     in sequence so the composition "assembles itself" */
-  .draw{
-    stroke-dasharray: 1 1; /* real value is computed per-element in JS */
-    stroke-dashoffset: 1;
-  }
-  .fade-pop{
-    opacity:0;
-    transform-box:fill-box;
-    transform-origin:center;
-    transform:scale(0.4);
-  }
-  /* Used by elements that need a fixed CSS transform (translate/rotate)
-     baked in via JS (data-base) — this class only sets the fill-box,
-     never a transform, so it can't clobber that positioning. */
-  .tf{
-    transform-box:fill-box;
-    transform-origin:center;
-  }
-  .grow{
-    opacity:0;
-    transform-box:fill-box;
-    transform-origin:bottom center;
-    transform:scaleY(0.15);
-  }
-
-  /* ---------------- message ---------------- */
-  #message{
-    position:absolute;
-    left:50%; top:50%;
-    transform:translate(-50%,-46%);
-    text-align:center;
-    z-index:5;
-    pointer-events:none;
-    width:90vw;
-  }
-
-  #message-glow{
-    position:absolute;
-    left:50%; top:50%;
-    width:120vmin; height:120vmin;
-    transform:translate(-50%,-50%) scale(0.6);
-    background:radial-gradient(circle, rgba(216,182,255,0.55) 0%, rgba(160,110,230,0.18) 32%, transparent 68%);
-    opacity:0;
-    filter:blur(4px);
-    mix-blend-mode:screen;
-    transition:opacity 1.8s ease-out, transform 2.2s cubic-bezier(.16,1,.3,1);
-  }
-  #message.show #message-glow{ opacity:1; transform:translate(-50%,-50%) scale(1); }
-
-  #message h1{
-    position:relative;
-    margin:0;
-    font-family:'Cormorant Garamond', serif;
-    font-style:italic;
-    font-weight:600;
-    font-size:clamp(2.1rem, 8.5vw, 4.4rem);
-    letter-spacing:0.16em;
-    color:var(--petal-pale);
-    line-height:1.25;
-    filter:blur(14px);
-    opacity:0;
-    transform:translateY(22px);
-    transition:
-      opacity 1.7s cubic-bezier(.22,1,.36,1),
-      filter 1.7s cubic-bezier(.22,1,.36,1),
-      transform 1.7s cubic-bezier(.22,1,.36,1),
-      letter-spacing 1.9s cubic-bezier(.22,1,.36,1);
-
-    background:linear-gradient(100deg,
-      var(--petal-pale) 0%, var(--petal-pale) 35%,
-      #ffffff 48%,
-      var(--petal-pale) 61%, var(--petal-pale) 100%);
-    background-size:260% 100%;
-    background-position:0% 0%;
-    -webkit-background-clip:text;
-    background-clip:text;
-    -webkit-text-fill-color:transparent;
-    text-shadow:0 0 46px rgba(216,182,255,0.55);
-  }
-
-  #message.show h1{
-    opacity:1;
-    filter:blur(0px);
-    transform:translateY(0);
-    letter-spacing:0.04em;
-    animation:shimmer 4.5s ease-in-out 1.9s infinite, floatMsg 6s ease-in-out 1.9s infinite;
-  }
-  @keyframes shimmer{
-    0%   { background-position:0% 0%; }
-    50%  { background-position:100% 0%; }
-    100% { background-position:0% 0%; }
-  }
-  @keyframes floatMsg{
-    0%,100%{ transform:translateY(0px); }
-    50%    { transform:translateY(-8px); }
-  }
-
-  /* thin light rule that draws itself under the message, like a
-     brushstroke of underline — a quiet, single deliberate flourish */
-  #message .rule{
-    display:block;
-    margin:0.9em auto 0;
-    width:0;
-    height:1px;
-    background:linear-gradient(90deg, transparent, var(--petal-light), transparent);
-    transition:width 1.4s cubic-bezier(.22,1,.36,1) 1.1s, opacity 1.4s ease 1.1s;
-    opacity:0;
-  }
-  #message.show .rule{ width:min(220px, 46vw); opacity:0.9; }
-
-  @media (prefers-reduced-motion: reduce){
-    #message.show h1{ animation:none; }
-    #aura{ animation:auraIn 1.2s ease-out forwards; }
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Ocorrências Escolares</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        :root {
+            --pedagogica: #2563eb;
+            --disciplinar: #ea580c;
+            --cinza: #f3f4f6;
+            --escuro: #1f2937;
+            --borda: #d1d5db;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #f9fafb; color: var(--escuro); padding: 20px; max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 30px; }
+        h1 { color: var(--escuro); margin-bottom: 10px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid var(--borda); }
+        .tab { padding: 12px 24px; cursor: pointer; border-radius: 8px 8px 0 0; font-weight: 600; }
+        .tab.active { background: white; border: 2px solid var(--borda); border-bottom: 0; margin-bottom: -2px; }
+        .form-container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 25px; }
+        .tipo-botoes { display: flex; gap: 15px; margin-bottom: 20px; }
+        .tipo-btn { flex: 1; padding: 14px; border: 3px solid; border-radius: 10px; background: white; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.2s; }
+        .tipo-btn.pedagogica { border-color: var(--pedagogica); color: var(--pedagogica); }
+        .tipo-btn.pedagogica.active { background: var(--pedagogica); color: white; }
+        .tipo-btn.disciplinar { border-color: var(--disciplinar); color: var(--disciplinar); }
+        .tipo-btn.disciplinar.active { background: var(--disciplinar); color: white; }
+        .grupo { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; }
+        input, textarea, select { width: 100%; padding: 10px; border: 1px solid var(--borda); border-radius: 6px; font-size: 15px; }
+        textarea { min-height: 100px; resize: vertical; }
+        .historico { background: #f0f4ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid var(--pedagogica); display: none; }
+        .historico.visivel { display: block; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-primario { background: #10b981; color: white; width: 100%; margin-top: 10px; }
+        .btn-primario:hover { background: #059669; }
+        .filtros { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+        .lista { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; }
+        .item { padding: 14px; border-bottom: 1px solid var(--cinza); cursor: pointer; transition: background 0.15s; }
+        .item:hover { background: #f9fafb; }
+        .item .tag { display: inline-block; padding: 3px 10px; border-radius: 20px; color: white; font-size: 13px; font-weight: 600; margin-left: 8px; }
+        .tag.pedagogica { background: var(--pedagogica); }
+        .tag.disciplinar { background: var(--disciplinar); }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
+        .modal.aberto { display: flex; }
+        .modal-conteudo { background: white; padding: 30px; border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; }
+        .botoes-modal { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .btn-imprimir { background: #3b82f6; color: white; }
+        .btn-fechar { background: #6b7280; color: white; }
+        .assinaturas { display: flex; justify-content: space-between; margin-top: 40px; flex-wrap: wrap; gap: 20px; }
+        .campo-assinatura { border-top: 1px solid black; width: 180px; text-align: center; padding-top: 80px; }
+        .alerta { padding: 12px; border-radius: 6px; margin: 12px 0; display: none; }
+        .alerta.sucesso { background: #d1fae5; color: #065f46; display: block; }
+        .alerta.erro { background: #fee2e2; color: #991b1b; display: block; }
+        @media print {
+            body { background: white; padding: 0; }
+            .tabs, .form-container, .filtros, .lista, .botoes-modal, header { display: none !important; }
+            .modal { position: static; background: white; }
+            .modal-conteudo { box-shadow: none; max-height: none; }
+            .sem-imprimir { display: none !important; }
+        }
+    </style>
 </head>
 <body>
 
-<div id="stage">
-  <div id="aura"></div>
-  <canvas id="motes"></canvas>
+<header>
+    <h1>📋 Sistema de Ocorrências Escolares</h1>
+    <p>Registro e gestão de ocorrências pedagógicas e disciplinares</p>
+</header>
 
-  <div id="art-wrap">
-    <!-- ============================================================
-         The artwork. ViewBox is a tall portrait canvas mirroring the
-         reference photo's framing: three amethyst blooms rising out
-         of a bed of deep-violet foliage, flanked by tall grass, all
-         glowing softly against the dark.
-         ============================================================ -->
-    <svg id="art" viewBox="0 0 600 900" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Três flores roxas brilhantes desabrochando sobre um fundo escuro">
-      <defs>
-        <radialGradient id="gGround" cx="50%" cy="100%" r="75%">
-          <stop offset="0%" stop-color="#5a2fb0" stop-opacity="0.55"/>
-          <stop offset="45%" stop-color="#2a1160" stop-opacity="0.25"/>
-          <stop offset="100%" stop-color="#2a1160" stop-opacity="0"/>
-        </radialGradient>
+<!-- ABAS -->
+<div class="tabs">
+    <div class="tab active" id="abaRegistro" onclick="mostrarAba('registro')">📝 Registro</div>
+    <div class="tab" id="abaGestao" onclick="mostrarAba('gestao')">🔍 Gestão e Consulta</div>
+</div>
 
-        <linearGradient id="gBlade" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%"  stop-color="var(--leaf-dark)"/>
-          <stop offset="55%" stop-color="var(--leaf-mid)"/>
-          <stop offset="100%" stop-color="var(--leaf-hi)"/>
-        </linearGradient>
+<!-- ABA REGISTRO -->
+<div id="pagRegistro">
+    <div class="form-container">
+        <h3>Selecione o tipo de ocorrência</h3>
+        <div class="tipo-botoes">
+            <button class="tipo-btn pedagogica" id="btnPed" onclick="selecionarTipo('pedagogica')">📘 Pedagógica</button>
+            <button class="tipo-btn disciplinar" id="btnDis" onclick="selecionarTipo('disciplinar')">⚠️ Disciplinar</button>
+        </div>
 
-        <linearGradient id="gFoliage" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%"  stop-color="var(--foliage-3)"/>
-          <stop offset="55%" stop-color="var(--foliage-2)"/>
-          <stop offset="100%" stop-color="var(--foliage-1)"/>
-        </linearGradient>
+        <div class="grupo">
+            <label>Nome do Aluno</label>
+            <input type="text" id="alunoNome" onInput="buscarHistorico(this.value)" placeholder="Digite o nome completo do aluno...">
+        </div>
 
-        <linearGradient id="gStem" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0%"  stop-color="var(--petal-ink)"/>
-          <stop offset="100%" stop-color="var(--petal-mid)"/>
-        </linearGradient>
+        <div class="historico" id="caixaHistorico">
+            <strong>📊 Histórico do Aluno:</strong><br>
+            Total: <span id="histTotal">0</span> ocorrências<br>
+            Pedagógicas: <span id="histPed">0</span> | Disciplinares: <span id="histDis">0</span>
+        </div>
 
-        <radialGradient id="gPetal" cx="50%" cy="90%" r="90%">
-          <stop offset="0%"  stop-color="var(--petal-pale)"/>
-          <stop offset="45%" stop-color="var(--petal-light)"/>
-          <stop offset="100%" stop-color="var(--petal-deep)"/>
-        </radialGradient>
+        <div class="grupo">
+            <label>Série e Turma</label>
+            <input type="text" id="alunoSerie" placeholder="Ex: 6º ano C">
+        </div>
 
-        <radialGradient id="gBell" cx="50%" cy="0%" r="100%">
-          <stop offset="0%"  stop-color="var(--petal-mid)"/>
-          <stop offset="100%" stop-color="var(--petal-ink)"/>
-        </radialGradient>
+        <div class="grupo">
+            <label>Tipo da Ocorrência</label>
+            <input type="text" id="ocorrenciaTipo" placeholder="Ex: Atraso repetido / Dificuldade de aprendizagem">
+        </div>
 
-        <radialGradient id="gThroat" cx="50%" cy="50%" r="50%">
-          <stop offset="0%"  stop-color="#ffffff"/>
-          <stop offset="70%" stop-color="var(--throat)"/>
-          <stop offset="100%" stop-color="var(--petal-light)" stop-opacity="0"/>
-        </radialGradient>
+        <div class="grupo">
+            <label>Descrição Detalhada</label>
+            <textarea id="descricao" placeholder="Descreva com detalhes a situação..."></textarea>
+        </div>
 
-        <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation="6" result="b"/>
-          <feMerge>
-            <feMergeNode in="b"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
+        <div class="grupo">
+            <label>Nome do Professor Responsável</label>
+            <input type="text" id="professorNome" placeholder="Seu nome completo">
+        </div>
 
-        <filter id="wideGlow" x="-150%" y="-150%" width="400%" height="400%">
-          <feGaussianBlur stdDeviation="14"/>
-        </filter>
-      </defs>
+        <div class="grupo">
+            <label>Disciplina</label>
+            <input type="text" id="disciplina" placeholder="Ex: Português / Matemática">
+        </div>
 
-      <!-- ambient ground glow, the very first thing to appear -->
-      <ellipse id="groundGlow" cx="300" cy="815" rx="230" ry="90" fill="url(#gGround)" opacity="0"/>
+        <div class="alerta" id="alertaMsg"></div>
 
-      <!-- ===================== GRASS BLADES ===================== -->
-      <g id="grass" fill="url(#gBlade)" filter="url(#softGlow)"></g>
+        <button class="btn btn-primario" onclick="enviarOcorrencia()">📤 Enviar Ocorrência</button>
+    </div>
+</div>
 
-      <!-- ===================== PURPLE FOLIAGE ===================== -->
-      <g id="foliage" filter="url(#softGlow)"></g>
+<!-- ABA GESTÃO -->
+<div id="pagGestao" style="display: none;">
+    <div class="filtros">
+        <div>
+            <label>Nome do Aluno</label>
+            <input type="text" id="filtroNome" placeholder="Filtrar por nome...">
+        </div>
+        <div>
+            <label>Série/Turma</label>
+            <input type="text" id="filtroSerie" placeholder="Filtrar por série...">
+        </div>
+        <div>
+            <label>Tipo</label>
+            <select id="filtroTipo">
+                <option value="">Todos</option>
+                <option value="pedagogica">Pedagógica</option>
+                <option value="disciplinar">Disciplinar</option>
+            </select>
+        </div>
+        <div>
+            <label>Data Início</label>
+            <input type="date" id="filtroDataIni">
+        </div>
+        <div>
+            <label>Data Fim</label>
+            <input type="date" id="filtroDataFim">
+        </div>
+        <button class="btn" style="align-self: flex-end; background:#4f46e5; color:white;" onclick="aplicarFiltros()">🔍 Filtrar</button>
+    </div>
 
-      <!-- ===================== STEMS ===================== -->
-      <g id="stems" fill="none" stroke="url(#gStem)" stroke-width="6" stroke-linecap="round"></g>
+    <div class="lista" id="listaOcorrencias">
+        <div style="padding:20px; text-align:center; color:#6b7280;">Carregando ocorrências...</div>
+    </div>
+</div>
 
-      <!-- ===================== FLOWERS (populated by JS) ===================== -->
-      <g id="flowers"></g>
-
-    </svg>
-  </div>
-
-  <div id="message">
-    <h1>Você é especial</h1>
-    <span class="rule"></span>
-  </div>
+<!-- MODAL DE VISUALIZAÇÃO -->
+<div class="modal" id="modalVisualizar">
+    <div class="modal-conteudo" id="conteudoImpressao">
+        <!-- Conteúdo preenchido por JS -->
+    </div>
 </div>
 
 <script>
-(function(){
-  "use strict";
+// ==========================================================
+// 👇 CONFIGURAÇÕES DO SUPABASE — COLOQUE SUAS DADOS ABAIXO
+// ==========================================================
+const SUPABASE_URL = "https://SEU-PROJETO.supabase.co";
+const SUPABASE_KEY = "SUA-CHAVE-PUBLICA-AQUI";
 
-  /* ---------------------------------------------------------------
-     Respect the user's motion preference: if they've asked for
-     reduced motion, we still tell the story, just calmly — one
-     gentle fade instead of a long choreographed sequence.
-  --------------------------------------------------------------- */
-  const REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const svgNS = "http://www.w3.org/2000/svg";
-  const $ = (sel, ctx) => (ctx || document).querySelector(sel);
-  const grassG   = $('#grass');
-  const foliageG = $('#foliage');
-  const stemsG   = $('#stems');
-  const flowersG = $('#flowers');
+// Variáveis de controle
+let tipoSelecionado = null;
+let todasOcorrencias = [];
 
-  const wait = (ms) => new Promise(res => setTimeout(res, ms));
+// ==========================================================
+// FUNÇÕES DA ABA DE REGISTRO
+// ==========================================================
+function selecionarTipo(tipo) {
+    tipoSelecionado = tipo;
+    document.getElementById('btnPed').classList.remove('active');
+    document.getElementById('btnDis').classList.remove('active');
+    if (tipo === 'pedagogica') document.getElementById('btnPed').classList.add('active');
+    else document.getElementById('btnDis').classList.add('active');
+}
 
-  function el(tag, attrs){
-    const node = document.createElementNS(svgNS, tag);
-    for(const k in attrs) node.setAttribute(k, attrs[k]);
-    return node;
-  }
+async function buscarHistorico(nome) {
+    const caixa = document.getElementById('caixaHistorico');
+    if (nome.trim().length < 3) { caixa.classList.remove('visivel'); return; }
 
-  /* =================================================================
-     GEOMETRY GENERATORS
-     Small deterministic helpers that build the organic shapes
-     (blades of grass, foliage blobs, petals) as SVG path strings,
-     so the composition stays hand-art-directed rather than random.
-  ================================================================= */
+    const { data, error } = await supabase
+        .from('ocorrencias')
+        .select('tipo')
+        .ilike('aluno_nome', '%' + nome + '%');
 
-  // A tapered blade of grass rising from (x, baseY) to height h,
-  // leaning sideways by `lean` px at the tip, bowing by `bow`.
-  function bladePath(x, baseY, h, lean, bow, width){
-    const tipX = x + lean, tipY = baseY - h;
-    const midY = baseY - h * 0.55;
-    const c1x = x + bow, c1y = baseY - h * 0.3;
-    const c2x = tipX - bow * 0.4, c2y = midY;
-    return `M ${x - width/2},${baseY}
-            C ${c1x - width/2},${c1y} ${c2x - width/2},${c2y} ${tipX},${tipY}
-            C ${c2x + width/2},${c2y} ${c1x + width/2},${c1y} ${x + width/2},${baseY} Z`;
-  }
+    if (error) return;
+    caixa.classList.add('visivel');
+    let total = data.length, ped = 0, dis = 0;
+    data.forEach(o => o.tipo === 'pedagogica' ? ped++ : dis++);
+    document.getElementById('histTotal').textContent = total;
+    document.getElementById('histPed').textContent = ped;
+    document.getElementById('histDis').textContent = dis;
+}
 
-  // A soft organic leaf-blob used to build the violet foliage clump.
-  function leafBlob(cx, cy, w, h, rot){
-    const d = `M 0,0
-      C ${-w*0.55},${-h*0.15} ${-w*0.5},${-h*0.85} 0,${-h}
-      C ${w*0.5},${-h*0.85} ${w*0.55},${-h*0.15} 0,0 Z`;
-    return { d, transform:`translate(${cx},${cy}) rotate(${rot})` };
-  }
+async function enviarOcorrencia() {
+    const alerta = document.getElementById('alertaMsg');
+    if (!tipoSelecionado) { alerta.className = 'alerta erro'; alerta.textContent = '⚠️ Selecione o tipo de ocorrência!'; return; }
 
-  // A single flower petal, drawn pointing straight up from the
-  // flower's core, meant to be fanned out with a rotate() transform.
-  function petalPath(){
-    return `M 0,0
-      C -16,-14 -21,-42 -11,-70
-      C -6,-86 6,-86 11,-70
-      C 21,-42 16,-14 0,0 Z`;
-  }
-
-  /* =================================================================
-     BUILD: GRASS
-  ================================================================= */
-  const bladeSpecs = [
-    // [x, baseY, height, lean, bow, width]
-    [96,  832, 300,  10, 18, 14],
-    [128, 838, 380, -18, 26, 16],
-    [160, 836, 260,  22, 14, 11],
-    [188, 840, 430, -8, 30, 18],
-    [214, 834, 200,  16, 10, 10],
-
-    [404, 838, 210, -14, 12, 10],
-    [430, 834, 400,  16, 28, 17],
-    [458, 840, 300, -20, 18, 13],
-    [486, 836, 360,  12, 24, 15],
-    [512, 830, 230, -10, 12, 11],
-  ];
-
-  const bladeEls = bladeSpecs.map(spec => {
-    const p = el('path', { d: bladePath(...spec), opacity:'0', class:'blade' });
-    grassG.appendChild(p);
-    return p;
-  });
-
-  /* =================================================================
-     BUILD: FOLIAGE (the violet leaf clump at the base of the blooms)
-  ================================================================= */
-  const foliageSpecs = [
-    [244, 828, 120, 210, -18],
-    [300, 838, 130, 230,   4],
-    [356, 826, 118, 200,  22],
-    [212, 822,  90, 150, -34],
-    [388, 820,  92, 155,  32],
-    [270, 812,  80, 130, -6],
-    [332, 812,  80, 128,   9],
-  ];
-
-  // NOTE: each leaf keeps its position/rotation baked into a CSS
-  // transform (never an SVG "transform" attribute) so that the later
-  // scale-in animation — also CSS — never clobbers its placement.
-  const foliageEls = foliageSpecs.map((spec, i) => {
-    const [cx, cy, w, h, rot] = spec;
-    const shape = leafBlob(cx, cy, w, h, rot);
-    const base = `translate(${cx}px,${cy}px) rotate(${rot}deg)`;
-    const p = el('path', {
-      d: shape.d,
-      fill: 'url(#gFoliage)', class:'tf foliage-leaf'
-    });
-    p.style.opacity = '0';
-    p.style.transform = `${base} scale(0.35)`;
-    p.dataset.base = base;
-    foliageG.appendChild(p);
-    return p;
-  });
-
-  /* =================================================================
-     BUILD: STEMS + FLOWERS
-  ================================================================= */
-  const blooms = [
-    { base:[300, 812], tip:[300, 232], curve:[300, 520], scale:1.18, rot:0   },
-    { base:[224, 818], tip:[196, 318], curve:[190, 560], scale:0.86, rot:-9  },
-    { base:[372, 820], tip:[398, 356], curve:[404, 580], scale:0.80, rot:11  },
-  ];
-
-  const stemEls = [];
-  const flowerGroups = [];
-
-  blooms.forEach((b, i) => {
-    const [bx,by] = b.base, [tx,ty] = b.tip, [cx,cy] = b.curve;
-    const d = `M ${bx},${by} Q ${cx},${cy} ${tx},${ty}`;
-    const stem = el('path', { d, opacity:'0', class:'stem' });
-    stemsG.appendChild(stem);
-    stemEls.push(stem);
-
-    // flower group, positioned + oriented at the stem tip
-    const g = el('g', {
-      transform:`translate(${tx},${ty}) rotate(${b.rot}) scale(${b.scale})`,
-      opacity:'0'
-    });
-
-    // bell / sepal base sitting just beneath the petals
-    const bell = el('path', {
-      d:'M -30,10 C -30,34 -16,52 0,52 C 16,52 30,34 30,10 C 30,-4 -30,-4 -30,10 Z',
-      fill:'url(#gBell)', class:'bell fade-pop'
-    });
-    g.appendChild(bell);
-
-    // petals, fanned around the core. Rotation is baked into the CSS
-    // transform (via data-base) rather than the SVG "transform"
-    // attribute, so the pop-in scale animation doesn't erase the fan.
-    const petalAngles = [-58, -29, 0, 29, 58];
-    const petalEls = petalAngles.map(a => {
-      const base = `rotate(${a}deg)`;
-      const p = el('path', {
-        d: petalPath(),
-        fill:'url(#gPetal)',
-        class:'tf petal'
-      });
-      p.style.opacity = '0';
-      p.style.transform = `${base} scale(0.2)`;
-      p.dataset.base = base;
-      g.appendChild(p);
-      return p;
-    });
-
-    // soft under-glow disc for the bloom (adds the neon "backlit" feel)
-    const halo = el('circle', {
-      cx:0, cy:-18, r:46, fill:'var(--glow)', opacity:'0',
-      filter:'url(#wideGlow)', class:'halo'
-    });
-    g.insertBefore(halo, bell);
-
-    // throat + stamen
-    const throat = el('ellipse', { cx:0, cy:-14, rx:15, ry:11, fill:'url(#gThroat)', class:'fade-pop' });
-    g.appendChild(throat);
-    const stamen = el('circle', { cx:0, cy:-18, r:4.2, fill:'var(--stamen)', class:'fade-pop' });
-    g.appendChild(stamen);
-
-    flowersG.appendChild(g);
-    flowerGroups.push({ g, petalEls, bell, throat, stamen, halo });
-  });
-
-  /* =================================================================
-     ANIMATION HELPERS
-  ================================================================= */
-
-  // Prepares a path for a "drawing" (stroke reveal) animation by
-  // measuring its real rendered length, so the dash math is exact.
-  function primeDraw(pathEl){
-    const len = pathEl.getTotalLength();
-    pathEl.style.strokeDasharray = `${len}`;
-    pathEl.style.strokeDashoffset = `${len}`;
-    pathEl.style.opacity = '1';
-    return len;
-  }
-
-  function animateDraw(pathEl, duration){
-    return new Promise(resolve => {
-      const len = primeDraw(pathEl);
-      pathEl.animate(
-        [{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
-        { duration, easing:'cubic-bezier(.22,1,.36,1)', fill:'forwards' }
-      ).onfinish = resolve;
-    });
-  }
-
-  function animatePop(elm, duration, opts){
-    opts = opts || {};
-    const scaleFrom = opts.scaleFrom ?? 0.35;
-    // `base` is any fixed CSS transform (translate/rotate) the element
-    // needs to keep — e.g. a petal's fan angle, or a leaf's position.
-    // It's prepended to every keyframe so the scale animation never
-    // wipes out that placement.
-    const base = elm.dataset.base ? elm.dataset.base + ' ' : '';
-    return new Promise(resolve => {
-      elm.style.opacity = '1';
-      elm.animate(
-        [
-          { opacity:0, transform:`${base}scale(${scaleFrom})` },
-          { opacity:1, transform:`${base}scale(1.08)`, offset:0.72 },
-          { opacity:1, transform:`${base}scale(1)` }
-        ],
-        { duration, easing:'cubic-bezier(.22,1,.36,1)', fill:'forwards' }
-      ).onfinish = () => {
-        // Pin the final transform as a plain inline style too, so the
-        // result doesn't depend on the animation's "fill" persisting.
-        elm.style.transform = `${base}scale(1)`;
-        resolve();
-      };
-    });
-  }
-
-  function animateGrow(elm, duration){
-    return new Promise(resolve => {
-      elm.style.opacity = '1';
-      elm.animate(
-        [
-          { opacity:0, transform:'scaleY(0.2)' },
-          { opacity:1, transform:'scaleY(1)' }
-        ],
-        { duration, easing:'cubic-bezier(.2,.9,.3,1)', fill:'forwards' }
-      ).onfinish = resolve;
-    });
-  }
-
-  function pulse(elm, peakOpacity, duration){
-    return new Promise(resolve => {
-      elm.animate(
-        [{ opacity:0 }, { opacity:peakOpacity, offset:0.4 }, { opacity:peakOpacity*0.6 }],
-        { duration, easing:'ease-out', fill:'forwards' }
-      ).onfinish = resolve;
-    });
-  }
-
-  /* =================================================================
-     CANVAS — drifting light motes (pollen / fireflies / sparkle dust)
-     Continues gently forever, density scaled to the viewport so
-     modest phones stay smooth and near 60fps.
-  ================================================================= */
-  const canvas = $('#motes');
-  const ctx = canvas.getContext('2d');
-  let W, H, DPR;
-  let motes = [];
-  let sparkBudget = 0; // one-off sparkle bursts queued by the bloom sequence
-
-  function sizeCanvas(){
-    DPR = Math.min(window.devicePixelRatio || 1, 2);
-    W = window.innerWidth;
-    H = window.innerHeight;
-    canvas.style.width  = W + 'px';
-    canvas.style.height = H + 'px';
-    canvas.width  = W * DPR;
-    canvas.height = H * DPR;
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-  }
-
-  function makeMote(spawnLow){
-    const area = W * H;
-    return {
-      x: Math.random() * W,
-      y: spawnLow ? H + Math.random()*40 : Math.random()*H,
-      r: Math.random() * 1.6 + 0.6,
-      speed: Math.random() * 18 + 8,      // px/sec upward
-      drift: (Math.random() - 0.5) * 10,  // horizontal sway px/sec
-      phase: Math.random() * Math.PI * 2,
-      warmth: Math.random(), // 0 = cool violet, 1 = warm gold
-      life: 0
+    const dados = {
+        tipo: tipoSelecionado,
+        aluno_nome: document.getElementById('alunoNome').value.trim(),
+        aluno_serie: document.getElementById('alunoSerie').value.trim(),
+        ocorrencia_tipo: document.getElementById('ocorrenciaTipo').value.trim(),
+        descricao: document.getElementById('descricao').value.trim(),
+        professor_nome: document.getElementById('professorNome').value.trim(),
+        disciplina: document.getElementById('disciplina').value.trim(),
+        solucao: '',
+        assinaturas: ''
     };
-  }
 
-  function initMotes(){
-    const area = W * H;
-    const count = REDUCE ? 0 : Math.max(18, Math.min(90, Math.floor(area / 13000)));
-    motes = new Array(count).fill(0).map(() => makeMote(false));
-  }
-
-  let lastT = performance.now();
-  function tickMotes(now){
-    const dt = Math.min(0.05, (now - lastT) / 1000);
-    lastT = now;
-    ctx.clearRect(0,0,W,H);
-
-    for(const m of motes){
-      m.life += dt;
-      m.y -= m.speed * dt;
-      m.x += Math.sin(m.life * 1.2 + m.phase) * m.drift * dt;
-      if(m.y < -10){ Object.assign(m, makeMote(true)); }
-
-      const twinkle = 0.5 + 0.5 * Math.sin(m.life * 2.2 + m.phase);
-      const alpha = 0.15 + twinkle * 0.55;
-      const color = m.warmth > 0.6 ? '255,233,176' : '216,182,255';
-
-      ctx.beginPath();
-      const grad = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, m.r*4);
-      grad.addColorStop(0, `rgba(${color},${alpha})`);
-      grad.addColorStop(1, `rgba(${color},0)`);
-      ctx.fillStyle = grad;
-      ctx.arc(m.x, m.y, m.r*4, 0, Math.PI*2);
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.fillStyle = `rgba(${color},${Math.min(1,alpha+0.25)})`;
-      ctx.arc(m.x, m.y, m.r, 0, Math.PI*2);
-      ctx.fill();
+    if (!dados.aluno_nome || !dados.descricao) {
+        alerta.className = 'alerta erro';
+        alerta.textContent = '⚠️ Preencha o nome do aluno e a descrição!';
+        return;
     }
 
-    requestAnimationFrame(tickMotes);
-  }
-
-  sizeCanvas();
-  initMotes();
-  requestAnimationFrame(tickMotes);
-  window.addEventListener('resize', () => { sizeCanvas(); initMotes(); });
-
-  /* =================================================================
-     THE MAGIC — orchestrated formation sequence
-  ================================================================= */
-  async function bloomOneFlower(fg, stemEl, stemDur){
-    await animateDraw(stemEl, stemDur);
-    // The flower group's own position comes from its SVG "transform"
-    // attribute (translate/rotate/scale) — we only ever fade its
-    // opacity, never touch its CSS transform, so that placement stays intact.
-    fg.g.style.transition = 'opacity 420ms ease';
-    fg.g.style.opacity = '1';
-    await pulse(fg.halo, 0.55, 900);
-    await animatePop(fg.bell, 420, { scaleFrom:0.5 });
-    for(let i=0;i<fg.petalEls.length;i++){
-      animatePop(fg.petalEls[i], 520, { scaleFrom:0.2 });
-      await wait(85);
+    const { error } = await supabase.from('ocorrencias').insert([dados]);
+    if (error) {
+        alerta.className = 'alerta erro';
+        alerta.textContent = '❌ Erro ao salvar: ' + error.message;
+    } else {
+        alerta.className = 'alerta sucesso';
+        alerta.textContent = '✅ Ocorrência registrada com sucesso!';
+        // Limpar formulário
+        document.getElementById('alunoNome').value = '';
+        document.getElementById('alunoSerie').value = '';
+        document.getElementById('ocorrenciaTipo').value = '';
+        document.getElementById('descricao').value = '';
+        document.getElementById('professorNome').value = '';
+        document.getElementById('disciplina').value = '';
+        document.getElementById('caixaHistorico').classList.remove('visivel');
+        document.getElementById('btnPed').classList.remove('active');
+        document.getElementById('btnDis').classList.remove('active');
+        tipoSelecionado = null;
+        carregarLista();
     }
-    await wait(160);
-    animatePop(fg.throat, 380, { scaleFrom:0.3 });
-    await wait(90);
-    animatePop(fg.stamen, 320, { scaleFrom:0.2 });
-    await wait(200);
-  }
+}
 
-  async function runSequence(){
-    // 1) the ground softly ignites — the "planting" moment
-    await pulse($('#groundGlow'), 1, 1400);
+// ==========================================================
+// FUNÇÕES DA ABA DE GESTÃO
+// ==========================================================
+function mostrarAba(nome) {
+    document.getElementById('pagRegistro').style.display = nome === 'registro' ? 'block' : 'none';
+    document.getElementById('pagGestao').style.display = nome === 'gestao' ? 'block' : 'none';
+    document.getElementById('abaRegistro').classList.toggle('active', nome === 'registro');
+    document.getElementById('abaGestao').classList.toggle('active', nome === 'gestao');
+    if (nome === 'gestao') carregarLista();
+}
 
-    // 2) grass rises out of the dark, staggered
-    const grassPromises = bladeEls.map((b, i) => wait(i*70).then(() => animateDraw(b, 850)));
-    await wait(300);
+async function carregarLista(filtros = {}) {
+    let query = supabase.from('ocorrencias').select('*').order('created_at', { ascending: false });
 
-    // 3) violet foliage blooms open beneath where the flowers will stand
-    foliageEls.forEach((f, i) => wait(i*90).then(() => animatePop(f, 620)));
+    if (filtros.nome) query = query.ilike('aluno_nome', '%' + filtros.nome + '%');
+    if (filtros.serie) query = query.ilike('aluno_serie', '%' + filtros.serie + '%');
+    if (filtros.tipo) query = query.eq('tipo', filtros.tipo);
+    if (filtros.dataIni) query = query.gte('created_at', filtros.dataIni + 'T00:00:00');
+    if (filtros.dataFim) query = query.lte('created_at', filtros.dataFim + 'T23:59:59');
 
-    await Promise.all(grassPromises);
-    await wait(150);
+    const { data, error } = await query;
+    const lista = document.getElementById('listaOcorrencias');
 
-    // 4) each stem climbs, then its flower unfurls — center first,
-    //    like the composition is finding its balance outward
-    const order = [0,1,2];
-    for(const idx of order){
-      await bloomOneFlower(flowerGroups[idx], stemEls[idx], 780);
+    if (error || !data.length) {
+        lista.innerHTML = '<div style="padding:30px; text-align:center; color:#6b7280;">Nenhuma ocorrência encontrada.</div>';
+        return;
     }
 
-    // 5) let the fully formed scene breathe for a moment
-    await wait(1100);
+    todasOcorrencias = data;
+    lista.innerHTML = data.map(o => {
+        const dataBr = new Date(o.created_at).toLocaleDateString('pt-BR');
+        const tagClass = o.tipo === 'pedagogica' ? 'pedagogica' : 'disciplinar';
+        const tagTexto = o.tipo === 'pedagogica' ? 'Pedagógica' : 'Disciplinar';
+        return `
+            <div class="item" onclick="abrirVisualizacao('${o.id}')">
+                <strong>${dataBr}</strong> — ${o.aluno_nome} (${o.aluno_serie})
+                <span class="tag ${tagClass}">${tagTexto}</span><br>
+                <small>${o.ocorrencia_tipo || 'Sem tipo'} — ${o.professor_nome || 'Professor não informado'}</small>
+            </div>
+        `;
+    }).join('');
+}
 
-    // 6) reveal the message
-    $('#message').classList.add('show');
-  }
-
-  async function runReduced(){
-    // One calm, single fade for people who prefer minimal motion.
-    $('#groundGlow').style.transition = 'opacity 1s ease';
-    $('#groundGlow').style.opacity = '1';
-
-    // Grass has no positional transform to preserve — plain fade is fine.
-    bladeEls.forEach(elx => { elx.style.transition = 'opacity 1s ease'; elx.style.opacity='1'; elx.style.transform='none'; });
-
-    // Foliage leaves DO carry a positional base transform (translate+rotate)
-    // in data-base — keep it, only settle the scale to 1.
-    foliageEls.forEach(elx => {
-      const base = elx.dataset.base ? elx.dataset.base + ' ' : '';
-      elx.style.transition = 'opacity 1s ease, transform 1s ease';
-      elx.style.opacity = '1';
-      elx.style.transform = `${base}scale(1)`;
+function aplicarFiltros() {
+    carregarLista({
+        nome: document.getElementById('filtroNome').value.trim(),
+        serie: document.getElementById('filtroSerie').value.trim(),
+        tipo: document.getElementById('filtroTipo').value,
+        dataIni: document.getElementById('filtroDataIni').value,
+        dataFim: document.getElementById('filtroDataFim').value
     });
+}
 
-    stemEls.forEach(s => { primeDraw(s); s.style.transition='stroke-dashoffset 1s ease'; requestAnimationFrame(()=> s.style.strokeDashoffset='0'); });
+async function abrirVisualizacao(id) {
+    const ocorrencia = todasOcorrencias.find(o => o.id === id);
+    if (!ocorrencia) return;
 
-    flowerGroups.forEach(fg => {
-      // The group's own translate/rotate/scale lives in its SVG
-      // "transform" attribute — only fade opacity, never touch its CSS transform.
-      fg.g.style.transition = 'opacity 1s ease';
-      fg.g.style.opacity = '1';
+    // Buscar histórico do aluno
+    const { data: historico } = await supabase
+        .from('ocorrencias').select('tipo').ilike('aluno_nome', '%' + ocorrencia.aluno_nome + '%');
 
-      [fg.bell, fg.throat, fg.stamen].forEach(x=>{ x.style.transition='opacity 1s ease'; x.style.opacity='1'; });
+    let total = historico.length, ped = 0, dis = 0;
+    historico.forEach(h => h.tipo === 'pedagogica' ? ped++ : dis++);
 
-      // Petals carry their fan angle in data-base.
-      fg.petalEls.forEach(p => {
-        const base = p.dataset.base ? p.dataset.base + ' ' : '';
-        p.style.transition = 'opacity 1s ease, transform 1s ease';
-        p.style.opacity = '1';
-        p.style.transform = `${base}scale(1)`;
-      });
+    const dataBr = new Date(ocorrencia.created_at).toLocaleDateString('pt-BR');
+    const tagTexto = ocorrencia.tipo === 'pedagogica' ? '📘 Pedagógica' : '⚠️ Disciplinar';
 
-      fg.halo.style.opacity = '0.35';
-    });
+    document.getElementById('conteudoImpressao').innerHTML = `
+        <h2 style="text-align:center; margin-bottom:25px;">REGISTRO DE OCORRÊNCIA ESCOLAR</h2>
+        <p><strong>Data:</strong> ${dataBr}</p>
+        <p><strong>Tipo:</strong> ${tagTexto}</p>
+        <p><strong>Nome do Aluno:</strong> ${ocorrencia.aluno_nome}</p>
+        <p><strong>Série/Turma:</strong> ${ocorrencia.aluno_serie}</p>
+        <p><strong>Histórico do aluno:</strong> Total: ${total} | Pedagógicas: ${ped} | Disciplinares: ${dis}</p>
+        <p><strong>Tipo da Ocorrência:</strong> ${ocorrencia.ocorrencia_tipo || 'Não informado'}</p>
+        <p><strong>Descrição:</strong></p>
+        <p style="white-space: pre-wrap; background:#f9fafb; padding:12px; border-radius:6px;">${ocorrencia.descricao}</p>
+        <p><strong>Professor Responsável:</strong> ${ocorrencia.professor_nome}</p>
+        <p><strong>Disciplina:</strong> ${ocorrencia.disciplina || 'Não informada'}</p>
+        <hr style="margin:20px 0; border:1px dashed #ccc;">
+        <p><strong>✍️ Providência / Solução:</strong></p>
+        <textarea id="campoSolucao" style="width:100%; height:100px; padding:10px; border:1px solid #ccc; border-radius:6px;">${ocorrencia.solucao || ''}</textarea>
+        <p><strong>🖋️ Assinaturas:</strong></p>
+        <textarea id="campoAssinaturas" style="width:100%; height:80px; padding:10px; border:1px solid #ccc; border-radius:6px;" placeholder="Professor, Coordenador, Responsável...">${ocorrencia.assinaturas || ''}</textarea>
+        <div class="assinaturas">
+            <div class="campo-assinatura">Professor</div>
+            <div class="campo-assinatura">Coordenador(a)</div>
+            <div class="campo-assinatura">Responsável</div>
+        </div>
+        <div class="botoes-modal sem-imprimir">
+            <button class="btn" style="background:#10b981; color:white;" onclick="salvarSolucao('${id}')">💾 Salvar Solução e Assinaturas</button>
+            <button class="btn btn-imprimir" onclick="imprimir()">🖨️ Imprimir</button>
+            <button class="btn btn-fechar" onclick="fecharModal()">Fechar</button>
+        </div>
+    `;
 
-    await wait(1400);
-    $('#message').classList.add('show');
-  }
+    document.getElementById('modalVisualizar').classList.add('aberto');
+}
 
-  // Kick off once the page has settled.
-  window.addEventListener('load', () => {
-    if(REDUCE){ runReduced(); } else { runSequence(); }
-  });
+async function salvarSolucao(id) {
+    const solucao = document.getElementById('campoSolucao').value;
+    const assinaturas = document.getElementById('campoAssinaturas').value;
 
-})();
+    const { error } = await supabase
+        .from('ocorrencias')
+        .update({ solucao: solucao, assinaturas: assinaturas })
+        .eq('id', id);
+
+    if (error) alert('❌ Erro ao salvar: ' + error.message);
+    else alert('✅ Salvo com sucesso!');
+}
+
+function imprimir() {
+    window.print();
+}
+
+function fecharModal() {
+    document.getElementById('modalVisualizar').classList.remove('aberto');
+}
+
+// Fechar modal clicando fora
+document.getElementById('modalVisualizar').addEventListener('click', e => {
+    if (e.target.id === 'modalVisualizar') fecharModal();
+});
+
 </script>
 </body>
 </html>
