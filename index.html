@@ -7,58 +7,112 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
         :root {
-            --pedagogica: #2563eb;
-            --disciplinar: #ea580c;
-            --cinza: #f3f4f6;
-            --escuro: #1f2937;
-            --borda: #d1d5db;
+            --bg-base: #0b0b0f;
+            --bg-card: rgba(18, 18, 26, 0.75);
+            --borda: rgba(255, 255, 255, 0.1);
+            --roxo-primario: #8b5cf6;
+            --roxo-hover: #7c3aed;
+            --texto: #f3f4f6;
+            --texto-muted: #9ca3af;
+            --pedagogica: #3b82f6;
+            --disciplinar: #f97316;
         }
+
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background: #f9fafb; color: var(--escuro); padding: 20px; max-width: 1200px; margin: 0 auto; }
-        header { text-align: center; margin-bottom: 30px; }
-        h1 { color: var(--escuro); margin-bottom: 10px; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid var(--borda); }
-        .tab { padding: 12px 24px; cursor: pointer; border-radius: 8px 8px 0 0; font-weight: 600; }
-        .tab.active { background: white; border: 2px solid var(--borda); border-bottom: 0; margin-bottom: -2px; }
-        .form-container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 25px; }
+        
+        body { 
+            background-color: var(--bg-base); 
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 40%);
+            color: var(--texto); 
+            padding: 30px 20px; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            min-height: 100vh;
+        }
+
+        header { text-align: center; margin-bottom: 40px; }
+        h1 { color: var(--texto); margin-bottom: 8px; font-size: 2.2rem; font-weight: 700; letter-spacing: -0.5px; }
+        header p { color: var(--texto-muted); font-size: 1.05rem; }
+
+        .tabs { display: flex; gap: 12px; margin-bottom: 25px; border-bottom: 1px solid var(--borda); padding-bottom: 0; }
+        .tab { padding: 12px 24px; cursor: pointer; border-radius: 8px 8px 0 0; font-weight: 600; color: var(--texto-muted); background: transparent; transition: all 0.2s; border: 1px solid transparent; }
+        .tab:hover { color: var(--texto); }
+        .tab.active { background: var(--bg-card); border-color: var(--borda); border-bottom-color: var(--bg-base); color: var(--texto); }
+
+        .form-container, .filtros, .lista, .modal-conteudo { 
+            background: var(--bg-card); 
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--borda);
+            padding: 30px; 
+            border-radius: 16px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4); 
+            margin-bottom: 25px; 
+        }
+
+        h3 { font-size: 1.2rem; margin-bottom: 16px; color: var(--texto); font-weight: 600; }
+
         .tipo-botoes { display: flex; gap: 15px; margin-bottom: 20px; }
-        .tipo-btn { flex: 1; padding: 14px; border: 3px solid; border-radius: 10px; background: white; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.2s; }
-        .tipo-btn.pedagogica { border-color: var(--pedagogica); color: var(--pedagogica); }
-        .tipo-btn.pedagogica.active { background: var(--pedagogica); color: white; }
-        .tipo-btn.disciplinar { border-color: var(--disciplinar); color: var(--disciplinar); }
-        .tipo-btn.disciplinar.active { background: var(--disciplinar); color: white; }
-        .grupo { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: 500; }
-        input, textarea, select { width: 100%; padding: 10px; border: 1px solid var(--borda); border-radius: 6px; font-size: 15px; }
+        .tipo-btn { flex: 1; padding: 14px; border: 1px solid var(--borda); border-radius: 10px; background: rgba(255,255,255,0.02); cursor: pointer; font-size: 15px; font-weight: 600; color: var(--texto-muted); transition: all 0.2s; }
+        .tipo-btn.pedagogica.active { background: rgba(59, 130, 246, 0.2); border-color: var(--pedagogica); color: #93c5fd; }
+        .tipo-btn.disciplinar.active { background: rgba(249, 115, 22, 0.2); border-color: var(--disciplinar); color: #fdba74; }
+
+        .grupo { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 0.9rem; color: var(--texto-muted); }
+        
+        input, textarea, select { 
+            width: 100%; 
+            padding: 12px 16px; 
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--borda); 
+            border-radius: 8px; 
+            font-size: 15px; 
+            color: var(--texto);
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--roxo-primario); }
         textarea { min-height: 100px; resize: vertical; }
-        .historico { background: #f0f4ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid var(--pedagogica); display: none; }
+
+        .historico { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); padding: 15px; border-radius: 8px; margin: 15px 0; display: none; color: #93c5fd; font-size: 0.95rem; }
         .historico.visivel { display: block; }
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn-primario { background: #10b981; color: white; width: 100%; margin-top: 10px; }
-        .btn-primario:hover { background: #059669; }
-        .filtros { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
-        .lista { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; }
-        .item { padding: 14px; border-bottom: 1px solid var(--cinza); cursor: pointer; transition: background 0.15s; }
-        .item:hover { background: #f9fafb; }
-        .item .tag { display: inline-block; padding: 3px 10px; border-radius: 20px; color: white; font-size: 13px; font-weight: 600; margin-left: 8px; }
-        .tag.pedagogica { background: var(--pedagogica); }
-        .tag.disciplinar { background: var(--disciplinar); }
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
+
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-primario { background: var(--roxo-primario); color: white; width: 100%; margin-top: 10px; box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4); }
+        .btn-primario:hover { background: var(--roxo-hover); }
+
+        .filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end; }
+        
+        .lista { overflow: hidden; padding: 0; }
+        .item { padding: 16px 20px; border-bottom: 1px solid var(--borda); cursor: pointer; transition: background 0.15s; }
+        .item:hover { background: rgba(255,255,255,0.03); }
+        .item .tag { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-left: 8px; }
+        .tag.pedagogica { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .tag.disciplinar { background: rgba(249, 115, 22, 0.2); color: #fdba74; border: 1px solid rgba(249, 115, 22, 0.3); }
+        .item small { color: var(--texto-muted); }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
         .modal.aberto { display: flex; }
-        .modal-conteudo { background: white; padding: 30px; border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; }
+        .modal-conteudo { max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; background: #121218; border: 1px solid var(--borda); }
+
         .botoes-modal { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
         .btn-imprimir { background: #3b82f6; color: white; }
-        .btn-fechar { background: #6b7280; color: white; }
+        .btn-fechar { background: #374151; color: white; }
+        
         .assinaturas { display: flex; justify-content: space-between; margin-top: 40px; flex-wrap: wrap; gap: 20px; }
-        .campo-assinatura { border-top: 1px solid black; width: 180px; text-align: center; padding-top: 80px; }
-        .alerta { padding: 12px; border-radius: 6px; margin: 12px 0; display: none; }
-        .alerta.sucesso { background: #d1fae5; color: #065f46; display: block; }
-        .alerta.erro { background: #fee2e2; color: #991b1b; display: block; }
+        .campo-assinatura { border-top: 1px solid var(--texto-muted); width: 180px; text-align: center; padding-top: 10px; color: var(--texto-muted); font-size: 0.9rem; }
+
+        .alerta { padding: 12px; border-radius: 8px; margin: 12px 0; display: none; font-size: 0.95rem; }
+        .alerta.sucesso { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; display: block; }
+        .alerta.erro { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; display: block; }
+
         @media print {
-            body { background: white; padding: 0; }
+            body { background: white; color: black; padding: 0; }
             .tabs, .form-container, .filtros, .lista, .botoes-modal, header { display: none !important; }
             .modal { position: static; background: white; }
-            .modal-conteudo { box-shadow: none; max-height: none; }
+            .modal-conteudo { background: white; color: black; border: none; box-shadow: none; max-height: none; }
+            input, textarea { background: transparent !important; color: black !important; border-color: #ccc !important; }
+            .campo-assinatura { border-top: 1px solid black; color: black; }
             .sem-imprimir { display: none !important; }
         }
     </style>
@@ -70,13 +124,11 @@
     <p>Registro e gestão de ocorrências pedagógicas e disciplinares</p>
 </header>
 
-<!-- ABAS -->
 <div class="tabs">
     <div class="tab active" id="abaRegistro" onclick="mostrarAba('registro')">📝 Registro</div>
     <div class="tab" id="abaGestao" onclick="mostrarAba('gestao')">🔍 Gestão e Consulta</div>
 </div>
 
-<!-- ABA REGISTRO -->
 <div id="pagRegistro">
     <div class="form-container">
         <h3>Selecione o tipo de ocorrência</h3>
@@ -127,7 +179,6 @@
     </div>
 </div>
 
-<!-- ABA GESTÃO -->
 <div id="pagGestao" style="display: none;">
     <div class="filtros">
         <div>
@@ -154,37 +205,27 @@
             <label>Data Fim</label>
             <input type="date" id="filtroDataFim">
         </div>
-        <button class="btn" style="align-self: flex-end; background:#4f46e5; color:white;" onclick="aplicarFiltros()">🔍 Filtrar</button>
+        <button class="btn" style="background:var(--roxo-primario); color:white; height: 46px;" onclick="aplicarFiltros()">🔍 Filtrar</button>
     </div>
 
     <div class="lista" id="listaOcorrencias">
-        <div style="padding:20px; text-align:center; color:#6b7280;">Carregando ocorrências...</div>
+        <div style="padding:20px; text-align:center; color:var(--texto-muted);">Carregando ocorrências...</div>
     </div>
 </div>
 
-<!-- MODAL DE VISUALIZAÇÃO -->
 <div class="modal" id="modalVisualizar">
-    <div class="modal-conteudo" id="conteudoImpressao">
-        <!-- Conteúdo preenchido por JS -->
-    </div>
+    <div class="modal-conteudo" id="conteudoImpressao"></div>
 </div>
 
 <script>
-// ==========================================================
-// 👇 CONFIGURAÇÕES DO SUPABASE — COLOQUE SUAS DADOS ABAIXO
-// ==========================================================
 const SUPABASE_URL = "https://sistemas-de-ocorrencias-gabriela.supabase.co";
 const SUPABASE_KEY = "sb_publishable_4s847nOt8lMyEHogp-KlnQ_1qMc-rrO";
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Variáveis de controle
 let tipoSelecionado = null;
 let todasOcorrencias = [];
 
-// ==========================================================
-// FUNÇÕES DA ABA DE REGISTRO
-// ==========================================================
 function selecionarTipo(tipo) {
     tipoSelecionado = tipo;
     document.getElementById('btnPed').classList.remove('active');
@@ -240,7 +281,6 @@ async function enviarOcorrencia() {
     } else {
         alerta.className = 'alerta sucesso';
         alerta.textContent = '✅ Ocorrência registrada com sucesso!';
-        // Limpar formulário
         document.getElementById('alunoNome').value = '';
         document.getElementById('alunoSerie').value = '';
         document.getElementById('ocorrenciaTipo').value = '';
@@ -255,9 +295,6 @@ async function enviarOcorrencia() {
     }
 }
 
-// ==========================================================
-// FUNÇÕES DA ABA DE GESTÃO
-// ==========================================================
 function mostrarAba(nome) {
     document.getElementById('pagRegistro').style.display = nome === 'registro' ? 'block' : 'none';
     document.getElementById('pagGestao').style.display = nome === 'gestao' ? 'block' : 'none';
@@ -279,7 +316,7 @@ async function carregarLista(filtros = {}) {
     const lista = document.getElementById('listaOcorrencias');
 
     if (error || !data.length) {
-        lista.innerHTML = '<div style="padding:30px; text-align:center; color:#6b7280;">Nenhuma ocorrência encontrada.</div>';
+        lista.innerHTML = '<div style="padding:30px; text-align:center; color:var(--texto-muted);">Nenhuma ocorrência encontrada.</div>';
         return;
     }
 
@@ -312,33 +349,32 @@ async function abrirVisualizacao(id) {
     const ocorrencia = todasOcorrencias.find(o => o.id === id);
     if (!ocorrencia) return;
 
-    // Buscar histórico do aluno
     const { data: historico } = await supabase
         .from('ocorrencias').select('tipo').ilike('aluno_nome', '%' + ocorrencia.aluno_nome + '%');
 
-    let total = historico.length, ped = 0, dis = 0;
-    historico.forEach(h => h.tipo === 'pedagogica' ? ped++ : dis++);
+    let total = historico ? historico.length : 0, ped = 0, dis = 0;
+    if (historico) historico.forEach(h => h.tipo === 'pedagogica' ? ped++ : dis++);
 
     const dataBr = new Date(ocorrencia.created_at).toLocaleDateString('pt-BR');
     const tagTexto = ocorrencia.tipo === 'pedagogica' ? '📘 Pedagógica' : '⚠️ Disciplinar';
 
     document.getElementById('conteudoImpressao').innerHTML = `
-        <h2 style="text-align:center; margin-bottom:25px;">REGISTRO DE OCORRÊNCIA ESCOLAR</h2>
+        <h2 style="text-align:center; margin-bottom:25px; color:var(--texto);">REGISTRO DE OCORRÊNCIA ESCOLAR</h2>
         <p><strong>Data:</strong> ${dataBr}</p>
         <p><strong>Tipo:</strong> ${tagTexto}</p>
         <p><strong>Nome do Aluno:</strong> ${ocorrencia.aluno_nome}</p>
         <p><strong>Série/Turma:</strong> ${ocorrencia.aluno_serie}</p>
         <p><strong>Histórico do aluno:</strong> Total: ${total} | Pedagógicas: ${ped} | Disciplinares: ${dis}</p>
         <p><strong>Tipo da Ocorrência:</strong> ${ocorrencia.ocorrencia_tipo || 'Não informado'}</p>
-        <p><strong>Descrição:</strong></p>
-        <p style="white-space: pre-wrap; background:#f9fafb; padding:12px; border-radius:6px;">${ocorrencia.descricao}</p>
-        <p><strong>Professor Responsável:</strong> ${ocorrencia.professor_nome}</p>
+        <p style="margin-top:10px;"><strong>Descrição:</strong></p>
+        <p style="white-space: pre-wrap; background:rgba(0,0,0,0.2); padding:12px; border-radius:8px; border:1px solid var(--borda); margin-top:5px;">${ocorrencia.descricao}</p>
+        <p style="margin-top:10px;"><strong>Professor Responsável:</strong> ${ocorrencia.professor_nome}</p>
         <p><strong>Disciplina:</strong> ${ocorrencia.disciplina || 'Não informada'}</p>
-        <hr style="margin:20px 0; border:1px dashed #ccc;">
+        <hr style="margin:20px 0; border:1px solid var(--borda);">
         <p><strong>✍️ Providência / Solução:</strong></p>
-        <textarea id="campoSolucao" style="width:100%; height:100px; padding:10px; border:1px solid #ccc; border-radius:6px;">${ocorrencia.solucao || ''}</textarea>
-        <p><strong>🖋️ Assinaturas:</strong></p>
-        <textarea id="campoAssinaturas" style="width:100%; height:80px; padding:10px; border:1px solid #ccc; border-radius:6px;" placeholder="Professor, Coordenador, Responsável...">${ocorrencia.assinaturas || ''}</textarea>
+        <textarea id="campoSolucao" style="margin-top:5px;">${ocorrencia.solucao || ''}</textarea>
+        <p style="margin-top:10px;"><strong>🖋️ Observações / Assinaturas:</strong></p>
+        <textarea id="campoAssinaturas" style="height:80px; margin-top:5px;" placeholder="Professor, Coordenador, Responsável...">${ocorrencia.assinaturas || ''}</textarea>
         <div class="assinaturas">
             <div class="campo-assinatura">Professor</div>
             <div class="campo-assinatura">Coordenador(a)</div>
@@ -367,19 +403,12 @@ async function salvarSolucao(id) {
     else alert('✅ Salvo com sucesso!');
 }
 
-function imprimir() {
-    window.print();
-}
+function imprimir() { window.print(); }
+function fecharModal() { document.getElementById('modalVisualizar').classList.remove('aberto'); }
 
-function fecharModal() {
-    document.getElementById('modalVisualizar').classList.remove('aberto');
-}
-
-// Fechar modal clicando fora
 document.getElementById('modalVisualizar').addEventListener('click', e => {
     if (e.target.id === 'modalVisualizar') fecharModal();
 });
-
 </script>
 </body>
 </html>
