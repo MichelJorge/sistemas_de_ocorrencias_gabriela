@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Ocorrências Escolares</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        window.createSupabaseClient = createClient;
+        window.dispatchEvent(new Event('supabase-ready'));
+    </script>
     <style>
         :root {
             --bg-base: #0b0b0f;
@@ -221,10 +225,13 @@
 const SUPABASE_URL = "https://sistemas-de-ocorrencias-gabriela.supabase.co";
 const SUPABASE_KEY = "sb_publishable_4s847nOt8lMyEHogp-KlnQ_1qMc-rrO";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+let supabase = null;
 let tipoSelecionado = null;
 let todasOcorrencias = [];
+
+window.addEventListener('supabase-ready', () => {
+    supabase = window.createSupabaseClient(SUPABASE_URL, SUPABASE_KEY);
+});
 
 function selecionarTipo(tipo) {
     tipoSelecionado = tipo;
@@ -235,6 +242,7 @@ function selecionarTipo(tipo) {
 }
 
 async function buscarHistorico(nome) {
+    if (!supabase) return;
     const caixa = document.getElementById('caixaHistorico');
     if (nome.trim().length < 3) { caixa.classList.remove('visivel'); return; }
 
@@ -254,6 +262,12 @@ async function buscarHistorico(nome) {
 
 async function enviarOcorrencia() {
     const alerta = document.getElementById('alertaMsg');
+    if (!supabase) {
+        alerta.className = 'alerta erro';
+        alerta.textContent = '⚠️ Conexão com o Supabase ainda carregando. Aguarde um instante.';
+        return;
+    }
+
     if (!tipoSelecionado) { 
         alerta.className = 'alerta erro'; 
         alerta.textContent = '⚠️ Selecione o tipo de ocorrência!'; 
@@ -308,6 +322,7 @@ function mostrarAba(nome) {
 }
 
 async function carregarLista(filtros = {}) {
+    if (!supabase) return;
     let query = supabase.from('ocorrencias').select('*').order('created_at', { ascending: false });
 
     if (filtros.nome) query = query.ilike('aluno_nome', '%' + filtros.nome + '%');
@@ -319,7 +334,7 @@ async function carregarLista(filtros = {}) {
     const { data, error } = await query;
     const lista = document.getElementById('listaOcorrencias');
 
-    if (error || !data.length) {
+    if (error || !data || !data.length) {
         lista.innerHTML = '<div style="padding:30px; text-align:center; color:var(--texto-muted);">Nenhuma ocorrência encontrada.</div>';
         return;
     }
@@ -350,6 +365,7 @@ function aplicarFiltros() {
 }
 
 async function abrirVisualizacao(id) {
+    if (!supabase) return;
     const ocorrencia = todasOcorrencias.find(o => o.id === id);
     if (!ocorrencia) return;
 
@@ -395,6 +411,7 @@ async function abrirVisualizacao(id) {
 }
 
 async function salvarSolucao(id) {
+    if (!supabase) return;
     const solucao = document.getElementById('campoSolucao').value;
     const assinaturas = document.getElementById('campoAssinaturas').value;
 
