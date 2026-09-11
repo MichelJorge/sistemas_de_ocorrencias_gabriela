@@ -47,6 +47,7 @@
 
 <div class="modal" id="viewModal"><div class="modal-content" id="printContent"></div></div>
 <script>
+// ATENÇÃO: Se necessário, certifique-se de usar a chave anon tradicional do projeto caso o formato novo gere restrições de CORS/DNS no browser.
 const SUPABASE_URL = 'https://jewhksbhobegdquotyzn.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_4s847nOt8lMyEHogp-KlnQ_1qMc-rrO';
 
@@ -62,7 +63,7 @@ function showAlert(type, text) { const el = $('formAlert'); el.className = 'aler
 
 async function checkConnection() {
     if (location.protocol === 'file:') {
-        showDiagnostic('<strong>Abra este arquivo por um servidor web.</strong> No GitHub Pages ou hospedagem web deve iniciar com https://, nunca file://.');
+        showDiagnostic('<strong>Abra este arquivo por um servidor web.</strong>');
         return;
     }
     if (!navigator.onLine) { 
@@ -70,11 +71,10 @@ async function checkConnection() {
         return; 
     }
     try {
-        // Validação direta na tabela do banco
         const { error } = await db.from('ocorrencias').select('id').limit(1);
         if (error) throw error;
     } catch (error) {
-        showDiagnostic('<strong>Não foi possível conectar à tabela do Supabase.</strong><br>Verifique se o projeto está ativo no painel e se a tabela <code>ocorrencias</code> foi criada corretamente.<br>Detalhe: ' + escapeHTML(error.message));
+        showDiagnostic('<strong>Erro de conexão com o Supabase.</strong> Verifique se a chave de API está correta e se a tabela <code>ocorrencias</code> existe no banco.<br>Detalhe: ' + escapeHTML(error.message));
     }
 }
 
