@@ -81,6 +81,7 @@
         .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn-primario { background: var(--roxo-primario); color: white; width: 100%; margin-top: 10px; box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4); }
         .btn-primario:hover { background: var(--roxo-hover); }
+        .btn-primario:disabled { opacity: 0.6; cursor: not-allowed; }
 
         .filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end; }
         
@@ -103,13 +104,31 @@
         .assinaturas { display: flex; justify-content: space-between; margin-top: 40px; flex-wrap: wrap; gap: 20px; }
         .campo-assinatura { border-top: 1px solid var(--texto-muted); width: 180px; text-align: center; padding-top: 10px; color: var(--texto-muted); font-size: 0.9rem; }
 
-        .alerta { padding: 12px; border-radius: 8px; margin: 12px 0; display: none; font-size: 0.95rem; }
+        .alerta { padding: 12px; border-radius: 8px; margin: 12px 0; display: none; font-size: 0.95rem; line-height: 1.5; }
         .alerta.sucesso { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; display: block; }
         .alerta.erro { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; display: block; }
+        .alerta.aviso { background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.3); color: #fbbf24; display: block; }
+
+        /* Banner fixo de diagnóstico de ambiente (file://, offline, etc.) */
+        #bannerDiagnostico {
+            display: none;
+            position: sticky;
+            top: 0;
+            z-index: 2000;
+            background: rgba(234, 179, 8, 0.15);
+            border: 1px solid rgba(234, 179, 8, 0.4);
+            color: #fbbf24;
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        #bannerDiagnostico strong { color: #fde68a; }
 
         @media print {
             body { background: white; color: black; padding: 0; }
-            .tabs, .form-container, .filtros, .lista, .botoes-modal, header { display: none !important; }
+            .tabs, .form-container, .filtros, .lista, .botoes-modal, header, #bannerDiagnostico { display: none !important; }
             .modal { position: static; background: white; }
             .modal-conteudo { background: white; color: black; border: none; box-shadow: none; max-height: none; }
             input, textarea { background: transparent !important; color: black !important; border-color: #ccc !important; }
@@ -119,6 +138,8 @@
     </style>
 </head>
 <body>
+
+<div id="bannerDiagnostico"></div>
 
 <header>
     <h1>📋 Sistema de Ocorrências Escolares</h1>
@@ -174,9 +195,9 @@
             <input type="text" id="disciplina" placeholder="Ex: Português / Matemática">
         </div>
 
-        <div class="alerta" id="alertaMsg"></div>
+        <div class="alerta" id="alertaMsg" style="display:none;"></div>
 
-        <button class="btn btn-primario" onclick="enviarOcorrencia()">📤 Enviar Ocorrência</button>
+        <button class="btn btn-primario" id="btnEnviar" onclick="enviarOcorrencia()">📤 Enviar Ocorrência</button>
     </div>
 </div>
 
@@ -226,12 +247,69 @@ let supabase = null;
 let tipoSelecionado = null;
 let todasOcorrencias = [];
 
+// ---------- DIAGNÓSTICO DE AMBIENTE ----------
+// "TypeError: Failed to fetch" quase sempre é um erro de REDE, não do código:
+// o navegador nem conseguiu completar a requisição HTTP. As causas mais comuns são:
+// 1) o arquivo foi aberto direto do disco (file://) e o navegador bloqueia a chamada;
+// 2) uma extensão de bloqueio de anúncios/privacidade barrou a requisição;
+// 3) o projeto Supabase está pausado (planos gratuitos pausam após alguns dias sem uso);
+// 4) não há internet no momento do clique.
+function exibirBannerDiagnostico(mensagemHtml) {
+    const banner = document.getElementById('bannerDiagnostico');
+    banner.innerHTML = mensagemHtml;
+    banner.style.display = 'block';
+}
+
+function diagnosticarAmbiente() {
+    if (location.protocol === 'file:') {
+        exibirBannerDiagnostico(
+            '⚠️ <strong>Este arquivo está sendo aberto direto do computador (file://).</strong> ' +
+            'Vários navegadores bloqueiam chamadas para o Supabase nesse modo, causando o erro ' +
+            '"Failed to fetch". Para resolver, hospede o arquivo (GitHub Pages, Netlify, Vercel) ' +
+            'ou rode um servidor local, por exemplo abrindo uma pasta com a extensão "Live Server" ' +
+            'do VS Code, ou rodando <code>python -m http.server</code> no terminal e acessando ' +
+            'via <code>http://localhost</code>.'
+        );
+        return;
+    }
+    if (!navigator.onLine) {
+        exibirBannerDiagnostico('⚠️ Parece que este dispositivo está sem conexão com a internet no momento.');
+    }
+}
+
+// Testa se o Supabase realmente responde (detecta projeto pausado/URL errada/bloqueio de rede)
+async function testarConexaoSupabase() {
+    if (location.protocol === 'file:') return; // já avisado acima
+    try {
+        const resp = await fetch(SUPABASE_URL + '/rest/v1/', {
+            method: 'GET',
+            headers: { apikey: SUPABASE_KEY }
+        });
+        // Qualquer resposta HTTP (mesmo 401/404) prova que a rede está OK.
+        if (!resp) throw new Error('sem resposta');
+    } catch (e) {
+        exibirBannerDiagnostico(
+            '⚠️ <strong>Não foi possível conectar ao Supabase</strong> (' + e.message + '). ' +
+            'Causas mais comuns: (1) o projeto Supabase está pausado — entre no ' +
+            '<a href="https://supabase.com/dashboard" target="_blank" style="color:#fde68a;">painel do Supabase</a> ' +
+            'e confirme que o projeto está ativo (projetos gratuitos pausam sozinhos após ~7 dias sem uso); ' +
+            '(2) uma extensão do navegador (bloqueador de anúncios/CORS) está barrando a requisição — tente em uma ' +
+            'aba anônima; (3) um firewall/antivírus/rede corporativa está bloqueando o domínio ' +
+            '<code>' + SUPABASE_URL.replace('https://', '') + '</code>.'
+        );
+    }
+}
+
 // Inicialização direta do cliente Supabase global
 try {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 } catch (e) {
     console.error("Erro ao inicializar o Supabase:", e);
+    exibirBannerDiagnostico('⚠️ Erro ao carregar a biblioteca do Supabase: ' + e.message);
 }
+
+diagnosticarAmbiente();
+testarConexaoSupabase();
 
 function selecionarTipo(tipo) {
     tipoSelecionado = tipo;
@@ -260,18 +338,22 @@ async function buscarHistorico(nome) {
     document.getElementById('histDis').textContent = dis;
 }
 
-async function enviarOcorrencia() {
+function mostrarAlerta(tipo, texto) {
     const alerta = document.getElementById('alertaMsg');
+    alerta.className = 'alerta ' + tipo;
+    alerta.style.display = 'block';
+    alerta.innerHTML = texto;
+}
+
+async function enviarOcorrencia() {
     if (!supabase) {
-        alerta.className = 'alerta erro';
-        alerta.textContent = '⚠️ Conexão com o Supabase indisponível.';
+        mostrarAlerta('erro', '⚠️ Conexão com o Supabase indisponível.');
         return;
     }
 
-    if (!tipoSelecionado) { 
-        alerta.className = 'alerta erro'; 
-        alerta.textContent = '⚠️ Selecione o tipo de ocorrência!'; 
-        return; 
+    if (!tipoSelecionado) {
+        mostrarAlerta('erro', '⚠️ Selecione o tipo de ocorrência!');
+        return;
     }
 
     const dados = {
@@ -287,18 +369,29 @@ async function enviarOcorrencia() {
     };
 
     if (!dados.aluno_nome || !dados.aluno_serie || !dados.descricao || !dados.professor_nome) {
-        alerta.className = 'alerta erro';
-        alerta.textContent = '⚠️ Preencha todos os campos obrigatórios (Nome, Série, Descrição e Professor)!';
+        mostrarAlerta('erro', '⚠️ Preencha todos os campos obrigatórios (Nome, Série, Descrição e Professor)!');
         return;
     }
 
+    const btn = document.getElementById('btnEnviar');
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+
     const { error } = await supabase.from('ocorrencias').insert([dados]);
+
+    btn.disabled = false;
+    btn.textContent = '📤 Enviar Ocorrência';
+
     if (error) {
-        alerta.className = 'alerta erro';
-        alerta.textContent = '❌ Erro ao salvar: ' + error.message;
+        const ehFalhaDeRede = /failed to fetch/i.test(error.message || '');
+        mostrarAlerta('erro',
+            '❌ Erro ao salvar: ' + error.message +
+            (ehFalhaDeRede
+                ? '<br><small>Isso é uma falha de rede, não do formulário. Veja o aviso amarelo no topo da página para as causas mais prováveis.</small>'
+                : '')
+        );
     } else {
-        alerta.className = 'alerta sucesso';
-        alerta.textContent = '✅ Ocorrência registrada com sucesso!';
+        mostrarAlerta('sucesso', '✅ Ocorrência registrada com sucesso!');
         document.getElementById('alunoNome').value = '';
         document.getElementById('alunoSerie').value = '';
         document.getElementById('ocorrenciaTipo').value = '';
@@ -334,7 +427,12 @@ async function carregarLista(filtros = {}) {
     const { data, error } = await query;
     const lista = document.getElementById('listaOcorrencias');
 
-    if (error || !data || !data.length) {
+    if (error) {
+        lista.innerHTML = '<div style="padding:30px; text-align:center; color:#f87171;">Erro ao carregar: ' + error.message + '</div>';
+        return;
+    }
+
+    if (!data || !data.length) {
         lista.innerHTML = '<div style="padding:30px; text-align:center; color:var(--texto-muted);">Nenhuma ocorrência encontrada.</div>';
         return;
     }
