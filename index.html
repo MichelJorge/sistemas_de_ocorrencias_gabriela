@@ -254,7 +254,11 @@ async function buscarHistorico(nome) {
 
 async function enviarOcorrencia() {
     const alerta = document.getElementById('alertaMsg');
-    if (!tipoSelecionado) { alerta.className = 'alerta erro'; alerta.textContent = '⚠️ Selecione o tipo de ocorrência!'; return; }
+    if (!tipoSelecionado) { 
+        alerta.className = 'alerta erro'; 
+        alerta.textContent = '⚠️ Selecione o tipo de ocorrência!'; 
+        return; 
+    }
 
     const dados = {
         tipo: tipoSelecionado,
@@ -268,9 +272,9 @@ async function enviarOcorrencia() {
         assinaturas: ''
     };
 
-    if (!dados.aluno_nome || !dados.descricao) {
+    if (!dados.aluno_nome || !dados.aluno_serie || !dados.descricao || !dados.professor_nome) {
         alerta.className = 'alerta erro';
-        alerta.textContent = '⚠️ Preencha o nome do aluno e a descrição!';
+        alerta.textContent = '⚠️ Preencha todos os campos obrigatórios (Nome, Série, Descrição e Professor)!';
         return;
     }
 
