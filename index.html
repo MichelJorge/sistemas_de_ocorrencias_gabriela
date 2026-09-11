@@ -47,7 +47,6 @@
 
 <div class="modal" id="viewModal"><div class="modal-content" id="printContent"></div></div>
 <script>
-// ATENÇÃO: Se necessário, certifique-se de usar a chave anon tradicional do projeto caso o formato novo gere restrições de CORS/DNS no browser.
 const SUPABASE_URL = 'https://jewhksbhobegdqtotyzn.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impld2hrc2Job2JlZ2RxdG90eXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNTg4OTQsImV4cCI6MjEwNDYzNDg5NH0.6VgVvNL2yb9tGmwRsBxdsnK1C3zMvjBjJ2B3xamW3OU';
 
@@ -63,7 +62,7 @@ function showAlert(type, text) { const el = $('formAlert'); el.className = 'aler
 
 async function checkConnection() {
     if (location.protocol === 'file:') {
-        showDiagnostic('<strong>Abra este arquivo por um servidor web.</strong>');
+        showDiagnostic('<strong>Abra este arquivo através de um servidor web ou GitHub Pages.</strong>');
         return;
     }
     if (!navigator.onLine) { 
@@ -73,8 +72,9 @@ async function checkConnection() {
     try {
         const { error } = await db.from('ocorrencias').select('id').limit(1);
         if (error) throw error;
+        $('diagnostic').style.display = 'none';
     } catch (error) {
-        showDiagnostic('<strong>Erro de conexão com o Supabase.</strong> Verifique se a chave de API está correta e se a tabela <code>ocorrencias</code> existe no banco.<br>Detalhe: ' + escapeHTML(error.message));
+        showDiagnostic('<strong>Erro na tabela do Supabase.</strong> Verifique se a tabela <code>ocorrencias</code> existe no schema public e se o RLS permite leitura/escrita.<br>Detalhe: ' + escapeHTML(error.message));
     }
 }
 
