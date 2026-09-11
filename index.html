@@ -47,7 +47,6 @@
 
 <div class="modal" id="viewModal"><div class="modal-content" id="printContent"></div></div>
 <script>
-/* IMPORTANTE: copie estes dois valores diretamente em Supabase > Project Settings > API. */
 const SUPABASE_URL = 'https://jewhksbhobegdquotyzn.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_4s847nOt8lMyEHogp-KlnQ_1qMc-rrO';
 
@@ -60,23 +59,22 @@ const $ = id => document.getElementById(id);
 function escapeHTML(value) { return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function showDiagnostic(html) { $('diagnostic').innerHTML = html; $('diagnostic').style.display = 'block'; }
 function showAlert(type, text) { const el = $('formAlert'); el.className = 'alert ' + type; el.textContent = text; el.style.display = 'block'; }
-function isPlaceholderConfig() { return !SUPABASE_URL || !SUPABASE_KEY || SUPABASE_URL.includes('COLE_AQUI') || SUPABASE_KEY.includes('COLE_AQUI'); }
 
 async function checkConnection() {
     if (location.protocol === 'file:') {
-        showDiagnostic('<strong>Abra este arquivo por um servidor web.</strong> No GitHub Pages ele deve iniciar com https://, nunca file://.');
+        showDiagnostic('<strong>Abra este arquivo por um servidor web.</strong> No GitHub Pages ou hospedagem web deve iniciar com https://, nunca file://.');
         return;
     }
-    if (isPlaceholderConfig()) {
-        showDiagnostic('<strong>Configure a URL e a chave do Supabase no código.</strong> Copie os valores em Project Settings → API.');
-        return;
+    if (!navigator.onLine) { 
+        showDiagnostic('<strong>O dispositivo está sem conexão com a internet.</strong>'); 
+        return; 
     }
-    if (!navigator.onLine) { showDiagnostic('<strong>O dispositivo está sem conexão com a internet.</strong>'); return; }
     try {
-        const response = await fetch(SUPABASE_URL + '/rest/v1/', { headers: { apikey: SUPABASE_KEY } });
-        if (!response.ok && response.status !== 401 && response.status !== 404) throw new Error('HTTP ' + response.status);
+        // Validação direta na tabela do banco
+        const { error } = await db.from('ocorrencias').select('id').limit(1);
+        if (error) throw error;
     } catch (error) {
-        showDiagnostic('<strong>Não foi possível encontrar o projeto Supabase.</strong><br>Confira no painel se o projeto está ativo e copie novamente o Project URL. URL usada: <code>' + escapeHTML(SUPABASE_URL) + '</code><br>Detalhe: ' + escapeHTML(error.message));
+        showDiagnostic('<strong>Não foi possível conectar à tabela do Supabase.</strong><br>Verifique se o projeto está ativo no painel e se a tabela <code>ocorrencias</code> foi criada corretamente.<br>Detalhe: ' + escapeHTML(error.message));
     }
 }
 
@@ -94,7 +92,7 @@ async function searchHistory(name) {
 }
 
 async function sendOccurrence() {
-    if (!db) return showAlert('error', 'Conexão com o Supabase indisponível. Verifique a URL, a chave e o banner acima.');
+    if (!db) return showAlert('error', 'Conexão com o Supabase indisponível.');
     if (!selectedType) return showAlert('error', 'Selecione o tipo de ocorrência.');
     const record = { tipo:selectedType, aluno_nome:$('studentName').value.trim(), aluno_serie:$('studentClass').value.trim(), ocorrencia_tipo:$('occurrenceType').value.trim(), descricao:$('description').value.trim(), professor_nome:$('teacherName').value.trim(), disciplina:$('subject').value.trim(), solucao:'', assinaturas:'' };
     if (!record.aluno_nome || !record.aluno_serie || !record.descricao || !record.professor_nome) return showAlert('error', 'Preencha Nome, Série, Descrição e Professor.');
@@ -135,7 +133,12 @@ function closeModal() { $('viewModal').classList.remove('open'); }
 $('viewModal').addEventListener('click', event => { if (event.target.id === 'viewModal') closeModal(); });
 
 (function init() {
-    try { if (!window.supabase || typeof window.supabase.createClient !== 'function') throw new Error('Biblioteca do Supabase não carregada.'); db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch (error) { showDiagnostic('<strong>Erro ao carregar o Supabase:</strong> ' + escapeHTML(error.message)); }
+    try { 
+        if (!window.supabase || typeof window.supabase.createClient !== 'function') throw new Error('Biblioteca do Supabase não carregada.'); 
+        db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); 
+    } catch (error) { 
+        showDiagnostic('<strong>Erro ao carregar o Supabase:</strong> ' + escapeHTML(error.message)); 
+    }
     checkConnection();
 })();
 </script>
