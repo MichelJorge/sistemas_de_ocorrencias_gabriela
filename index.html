@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Ocorrências Escolares</title>
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        window.createSupabaseClient = createClient;
-        window.dispatchEvent(new Event('supabase-ready'));
-    </script>
+    <!-- Importação robusta do Supabase via CDN UMD global -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --bg-base: #0b0b0f;
@@ -229,9 +226,12 @@ let supabase = null;
 let tipoSelecionado = null;
 let todasOcorrencias = [];
 
-window.addEventListener('supabase-ready', () => {
-    supabase = window.createSupabaseClient(SUPABASE_URL, SUPABASE_KEY);
-});
+// Inicialização direta do cliente Supabase global
+try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch (e) {
+    console.error("Erro ao inicializar o Supabase:", e);
+}
 
 function selecionarTipo(tipo) {
     tipoSelecionado = tipo;
@@ -264,7 +264,7 @@ async function enviarOcorrencia() {
     const alerta = document.getElementById('alertaMsg');
     if (!supabase) {
         alerta.className = 'alerta erro';
-        alerta.textContent = '⚠️ Conexão com o Supabase ainda carregando. Aguarde um instante.';
+        alerta.textContent = '⚠️ Conexão com o Supabase indisponível.';
         return;
     }
 
