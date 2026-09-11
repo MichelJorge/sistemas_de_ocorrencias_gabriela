@@ -243,7 +243,7 @@
 const SUPABASE_URL = "https://jewhksbhobegdquotyzn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_4s847nOt8lMyEHogp-KlnQ_1qMc-rrO";
 
-let supabase = null;
+let supabaseClient = null;
 let tipoSelecionado = null;
 let todasOcorrencias = [];
 
@@ -302,7 +302,7 @@ async function testarConexaoSupabase() {
 
 // Inicialização direta do cliente Supabase global
 try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 } catch (e) {
     console.error("Erro ao inicializar o Supabase:", e);
     exibirBannerDiagnostico('⚠️ Erro ao carregar a biblioteca do Supabase: ' + e.message);
@@ -320,11 +320,11 @@ function selecionarTipo(tipo) {
 }
 
 async function buscarHistorico(nome) {
-    if (!supabase) return;
+    if (!supabaseClient) return;
     const caixa = document.getElementById('caixaHistorico');
     if (nome.trim().length < 3) { caixa.classList.remove('visivel'); return; }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('ocorrencias')
         .select('tipo')
         .ilike('aluno_nome', '%' + nome + '%');
@@ -346,7 +346,7 @@ function mostrarAlerta(tipo, texto) {
 }
 
 async function enviarOcorrencia() {
-    if (!supabase) {
+    if (!supabaseClient) {
         mostrarAlerta('erro', '⚠️ Conexão com o Supabase indisponível.');
         return;
     }
@@ -377,7 +377,7 @@ async function enviarOcorrencia() {
     btn.disabled = true;
     btn.textContent = 'Enviando...';
 
-    const { error } = await supabase.from('ocorrencias').insert([dados]);
+    const { error } = await supabaseClient.from('ocorrencias').insert([dados]);
 
     btn.disabled = false;
     btn.textContent = '📤 Enviar Ocorrência';
@@ -415,8 +415,8 @@ function mostrarAba(nome) {
 }
 
 async function carregarLista(filtros = {}) {
-    if (!supabase) return;
-    let query = supabase.from('ocorrencias').select('*').order('created_at', { ascending: false });
+    if (!supabaseClient) return;
+    let query = supabaseClient.from('ocorrencias').select('*').order('created_at', { ascending: false });
 
     if (filtros.nome) query = query.ilike('aluno_nome', '%' + filtros.nome + '%');
     if (filtros.serie) query = query.ilike('aluno_serie', '%' + filtros.serie + '%');
@@ -463,11 +463,11 @@ function aplicarFiltros() {
 }
 
 async function abrirVisualizacao(id) {
-    if (!supabase) return;
+    if (!supabaseClient) return;
     const ocorrencia = todasOcorrencias.find(o => o.id === id);
     if (!ocorrencia) return;
 
-    const { data: historico } = await supabase
+    const { data: historico } = await supabaseClient
         .from('ocorrencias').select('tipo').ilike('aluno_nome', '%' + ocorrencia.aluno_nome + '%');
 
     let total = historico ? historico.length : 0, ped = 0, dis = 0;
@@ -509,11 +509,11 @@ async function abrirVisualizacao(id) {
 }
 
 async function salvarSolucao(id) {
-    if (!supabase) return;
+    if (!supabaseClient) return;
     const solucao = document.getElementById('campoSolucao').value;
     const assinaturas = document.getElementById('campoAssinaturas').value;
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('ocorrencias')
         .update({ solucao: solucao, assinaturas: assinaturas })
         .eq('id', id);
