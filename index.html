@@ -4,530 +4,140 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Ocorrências Escolares</title>
-    <!-- Importação robusta do Supabase via CDN UMD global -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root {
-            --bg-base: #0b0b0f;
-            --bg-card: rgba(18, 18, 26, 0.75);
-            --borda: rgba(255, 255, 255, 0.1);
-            --roxo-primario: #8b5cf6;
-            --roxo-hover: #7c3aed;
-            --texto: #f3f4f6;
-            --texto-muted: #9ca3af;
-            --pedagogica: #3b82f6;
-            --disciplinar: #f97316;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        
-        body { 
-            background-color: var(--bg-base); 
-            background-image: 
-                radial-gradient(circle at 15% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 40%),
-                radial-gradient(circle at 85% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 40%);
-            color: var(--texto); 
-            padding: 30px 20px; 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            min-height: 100vh;
-        }
-
-        header { text-align: center; margin-bottom: 40px; }
-        h1 { color: var(--texto); margin-bottom: 8px; font-size: 2.2rem; font-weight: 700; letter-spacing: -0.5px; }
-        header p { color: var(--texto-muted); font-size: 1.05rem; }
-
-        .tabs { display: flex; gap: 12px; margin-bottom: 25px; border-bottom: 1px solid var(--borda); padding-bottom: 0; }
-        .tab { padding: 12px 24px; cursor: pointer; border-radius: 8px 8px 0 0; font-weight: 600; color: var(--texto-muted); background: transparent; transition: all 0.2s; border: 1px solid transparent; }
-        .tab:hover { color: var(--texto); }
-        .tab.active { background: var(--bg-card); border-color: var(--borda); border-bottom-color: var(--bg-base); color: var(--texto); }
-
-        .form-container, .filtros, .lista, .modal-conteudo { 
-            background: var(--bg-card); 
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--borda);
-            padding: 30px; 
-            border-radius: 16px; 
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4); 
-            margin-bottom: 25px; 
-        }
-
-        h3 { font-size: 1.2rem; margin-bottom: 16px; color: var(--texto); font-weight: 600; }
-
-        .tipo-botoes { display: flex; gap: 15px; margin-bottom: 20px; }
-        .tipo-btn { flex: 1; padding: 14px; border: 1px solid var(--borda); border-radius: 10px; background: rgba(255,255,255,0.02); cursor: pointer; font-size: 15px; font-weight: 600; color: var(--texto-muted); transition: all 0.2s; }
-        .tipo-btn.pedagogica.active { background: rgba(59, 130, 246, 0.2); border-color: var(--pedagogica); color: #93c5fd; }
-        .tipo-btn.disciplinar.active { background: rgba(249, 115, 22, 0.2); border-color: var(--disciplinar); color: #fdba74; }
-
-        .grupo { margin-bottom: 18px; }
-        label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 0.9rem; color: var(--texto-muted); }
-        
-        input, textarea, select { 
-            width: 100%; 
-            padding: 12px 16px; 
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--borda); 
-            border-radius: 8px; 
-            font-size: 15px; 
-            color: var(--texto);
-            transition: border-color 0.2s;
-        }
-        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--roxo-primario); }
-        textarea { min-height: 100px; resize: vertical; }
-
-        .historico { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); padding: 15px; border-radius: 8px; margin: 15px 0; display: none; color: #93c5fd; font-size: 0.95rem; }
-        .historico.visivel { display: block; }
-
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn-primario { background: var(--roxo-primario); color: white; width: 100%; margin-top: 10px; box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4); }
-        .btn-primario:hover { background: var(--roxo-hover); }
-        .btn-primario:disabled { opacity: 0.6; cursor: not-allowed; }
-
-        .filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; align-items: end; }
-        
-        .lista { overflow: hidden; padding: 0; }
-        .item { padding: 16px 20px; border-bottom: 1px solid var(--borda); cursor: pointer; transition: background 0.15s; }
-        .item:hover { background: rgba(255,255,255,0.03); }
-        .item .tag { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin-left: 8px; }
-        .tag.pedagogica { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
-        .tag.disciplinar { background: rgba(249, 115, 22, 0.2); color: #fdba74; border: 1px solid rgba(249, 115, 22, 0.3); }
-        .item small { color: var(--texto-muted); }
-
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 1000; }
-        .modal.aberto { display: flex; }
-        .modal-conteudo { max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; background: #121218; border: 1px solid var(--borda); }
-
-        .botoes-modal { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-        .btn-imprimir { background: #3b82f6; color: white; }
-        .btn-fechar { background: #374151; color: white; }
-        
-        .assinaturas { display: flex; justify-content: space-between; margin-top: 40px; flex-wrap: wrap; gap: 20px; }
-        .campo-assinatura { border-top: 1px solid var(--texto-muted); width: 180px; text-align: center; padding-top: 10px; color: var(--texto-muted); font-size: 0.9rem; }
-
-        .alerta { padding: 12px; border-radius: 8px; margin: 12px 0; display: none; font-size: 0.95rem; line-height: 1.5; }
-        .alerta.sucesso { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; display: block; }
-        .alerta.erro { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; display: block; }
-        .alerta.aviso { background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.3); color: #fbbf24; display: block; }
-
-        /* Banner fixo de diagnóstico de ambiente (file://, offline, etc.) */
-        #bannerDiagnostico {
-            display: none;
-            position: sticky;
-            top: 0;
-            z-index: 2000;
-            background: rgba(234, 179, 8, 0.15);
-            border: 1px solid rgba(234, 179, 8, 0.4);
-            color: #fbbf24;
-            padding: 14px 18px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 0.9rem;
-            line-height: 1.5;
-        }
-        #bannerDiagnostico strong { color: #fde68a; }
-
-        @media print {
-            body { background: white; color: black; padding: 0; }
-            .tabs, .form-container, .filtros, .lista, .botoes-modal, header, #bannerDiagnostico { display: none !important; }
-            .modal { position: static; background: white; }
-            .modal-conteudo { background: white; color: black; border: none; box-shadow: none; max-height: none; }
-            input, textarea { background: transparent !important; color: black !important; border-color: #ccc !important; }
-            .campo-assinatura { border-top: 1px solid black; color: black; }
-            .sem-imprimir { display: none !important; }
-        }
+        :root{--bg:#0b0b0f;--card:rgba(18,18,26,.78);--border:rgba(255,255,255,.12);--primary:#8b5cf6;--hover:#7c3aed;--text:#f3f4f6;--muted:#9ca3af;--blue:#3b82f6;--orange:#f97316}
+        *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',sans-serif}
+        body{background:var(--bg);background-image:radial-gradient(circle at 15% 20%,rgba(139,92,246,.15),transparent 40%),radial-gradient(circle at 85% 80%,rgba(59,130,246,.1),transparent 40%);color:var(--text);padding:30px 20px;max-width:1200px;margin:auto;min-height:100vh}
+        header{text-align:center;margin-bottom:40px} h1{margin-bottom:8px;font-size:2.2rem} header p{color:var(--muted);font-size:1.05rem}
+        .tabs{display:flex;gap:12px;margin-bottom:25px;border-bottom:1px solid var(--border)} .tab{padding:12px 24px;cursor:pointer;border-radius:8px 8px 0 0;font-weight:600;color:var(--muted)} .tab.active{background:var(--card);border:1px solid var(--border);border-bottom-color:var(--bg);color:var(--text)}
+        .box,.modal-content{background:var(--card);backdrop-filter:blur(12px);border:1px solid var(--border);padding:30px;border-radius:16px;box-shadow:0 20px 40px rgba(0,0,0,.4);margin-bottom:25px} h3{font-size:1.2rem;margin-bottom:16px}
+        .type-buttons{display:flex;gap:15px;margin-bottom:20px}.type-btn{flex:1;padding:14px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.02);cursor:pointer;font-size:15px;font-weight:600;color:var(--muted)}.type-btn.pedagogica.active{background:rgba(59,130,246,.2);border-color:var(--blue);color:#93c5fd}.type-btn.disciplinar.active{background:rgba(249,115,22,.2);border-color:var(--orange);color:#fdba74}
+        .group{margin-bottom:18px}label{display:block;margin-bottom:6px;font-weight:500;font-size:.9rem;color:var(--muted)}input,textarea,select{width:100%;padding:12px 16px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:8px;font-size:15px;color:var(--text)}input:focus,textarea:focus,select:focus{outline:none;border-color:var(--primary)}textarea{min-height:100px;resize:vertical}
+        .history{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);padding:15px;border-radius:8px;margin:15px 0;display:none;color:#93c5fd;font-size:.95rem}.history.visible{display:block}
+        .btn{padding:12px 24px;border:0;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}.btn:disabled{opacity:.6;cursor:not-allowed}.primary{background:var(--primary);color:white;width:100%;margin-top:10px}.primary:hover{background:var(--hover)}
+        .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;align-items:end}.list{overflow:hidden;padding:0}.item{padding:16px 20px;border-bottom:1px solid var(--border);cursor:pointer}.item:hover{background:rgba(255,255,255,.03)}.tag{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;margin-left:8px}.tag.pedagogica{background:rgba(59,130,246,.2);color:#93c5fd}.tag.disciplinar{background:rgba(249,115,22,.2);color:#fdba74}.item small{color:var(--muted)}
+        .modal{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000}.modal.open{display:flex}.modal-content{max-width:700px;width:100%;max-height:90vh;overflow-y:auto;background:#121218}.modal-buttons{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}.signatures{display:flex;justify-content:space-between;margin-top:40px;flex-wrap:wrap;gap:20px}.signature{border-top:1px solid var(--muted);width:180px;text-align:center;padding-top:10px;color:var(--muted);font-size:.9rem}
+        .alert{padding:12px;border-radius:8px;margin:12px 0;display:none;font-size:.95rem;line-height:1.5}.alert.success{display:block;background:rgba(16,185,129,.15);color:#34d399}.alert.error{display:block;background:rgba(239,68,68,.15);color:#f87171}.alert.warning{display:block;background:rgba(234,179,8,.15);color:#fbbf24}
+        #diagnostic{display:none;background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.4);color:#fbbf24;padding:14px 18px;border-radius:10px;margin-bottom:20px;font-size:.9rem;line-height:1.5}#diagnostic strong{color:#fde68a}
+        @media print{body{background:#fff;color:#000;padding:0}.tabs,.form,.filters,.list,.modal-buttons,header,#diagnostic{display:none!important}.modal{position:static;background:#fff}.modal-content{background:#fff;color:#000;border:0;box-shadow:none;max-height:none}.signature{border-color:#000;color:#000}.no-print{display:none!important}}
     </style>
 </head>
 <body>
+<div id="diagnostic"></div>
+<header><h1>📋 Sistema de Ocorrências Escolares</h1><p>Registro e gestão de ocorrências pedagógicas e disciplinares</p></header>
+<div class="tabs"><div class="tab active" id="tabRegister" onclick="showTab('register')">📝 Registro</div><div class="tab" id="tabManage" onclick="showTab('manage')">🔍 Gestão e Consulta</div></div>
 
-<div id="bannerDiagnostico"></div>
+<section id="pageRegister">
+<div class="box form"><h3>Selecione o tipo de ocorrência</h3>
+<div class="type-buttons"><button class="type-btn pedagogica" id="btnPed" onclick="selectType('pedagogica')">📘 Pedagógica</button><button class="type-btn disciplinar" id="btnDis" onclick="selectType('disciplinar')">⚠️ Disciplinar</button></div>
+<div class="group"><label for="studentName">Nome do Aluno</label><input id="studentName" type="text" oninput="searchHistoryDebounced(this.value)" placeholder="Digite o nome completo do aluno..."></div>
+<div class="history" id="history"><strong>📊 Histórico do Aluno:</strong><br>Total: <span id="historyTotal">0</span> ocorrências<br>Pedagógicas: <span id="historyPed">0</span> | Disciplinares: <span id="historyDis">0</span></div>
+<div class="group"><label for="studentClass">Série e Turma</label><input id="studentClass" type="text" placeholder="Ex: 6º ano C"></div>
+<div class="group"><label for="occurrenceType">Tipo da Ocorrência</label><input id="occurrenceType" type="text" placeholder="Ex: Atraso repetido / Dificuldade de aprendizagem"></div>
+<div class="group"><label for="description">Descrição Detalhada</label><textarea id="description" placeholder="Descreva com detalhes a situação..."></textarea></div>
+<div class="group"><label for="teacherName">Nome do Professor Responsável</label><input id="teacherName" type="text" placeholder="Seu nome completo"></div>
+<div class="group"><label for="subject">Disciplina</label><input id="subject" type="text" placeholder="Ex: Português / Matemática"></div>
+<div class="alert" id="formAlert"></div><button class="btn primary" id="sendButton" onclick="sendOccurrence()">📤 Enviar Ocorrência</button>
+</div></section>
 
-<header>
-    <h1>📋 Sistema de Ocorrências Escolares</h1>
-    <p>Registro e gestão de ocorrências pedagógicas e disciplinares</p>
-</header>
+<section id="pageManage" style="display:none"><div class="box filters">
+<div><label for="filterName">Nome do Aluno</label><input id="filterName" placeholder="Filtrar por nome..."></div><div><label for="filterClass">Série/Turma</label><input id="filterClass" placeholder="Filtrar por série..."></div><div><label for="filterType">Tipo</label><select id="filterType"><option value="">Todos</option><option value="pedagogica">Pedagógica</option><option value="disciplinar">Disciplinar</option></select></div><div><label for="filterStart">Data Início</label><input id="filterStart" type="date"></div><div><label for="filterEnd">Data Fim</label><input id="filterEnd" type="date"></div><button class="btn" style="background:var(--primary);color:#fff;height:46px" onclick="applyFilters()">🔍 Filtrar</button>
+</div><div class="box list" id="occurrenceList"><div style="padding:20px;text-align:center;color:var(--muted)">Carregando ocorrências...</div></div></section>
 
-<div class="tabs">
-    <div class="tab active" id="abaRegistro" onclick="mostrarAba('registro')">📝 Registro</div>
-    <div class="tab" id="abaGestao" onclick="mostrarAba('gestao')">🔍 Gestão e Consulta</div>
-</div>
-
-<div id="pagRegistro">
-    <div class="form-container">
-        <h3>Selecione o tipo de ocorrência</h3>
-        <div class="tipo-botoes">
-            <button class="tipo-btn pedagogica" id="btnPed" onclick="selecionarTipo('pedagogica')">📘 Pedagógica</button>
-            <button class="tipo-btn disciplinar" id="btnDis" onclick="selecionarTipo('disciplinar')">⚠️ Disciplinar</button>
-        </div>
-
-        <div class="grupo">
-            <label>Nome do Aluno</label>
-            <input type="text" id="alunoNome" onInput="buscarHistorico(this.value)" placeholder="Digite o nome completo do aluno...">
-        </div>
-
-        <div class="historico" id="caixaHistorico">
-            <strong>📊 Histórico do Aluno:</strong><br>
-            Total: <span id="histTotal">0</span> ocorrências<br>
-            Pedagógicas: <span id="histPed">0</span> | Disciplinares: <span id="histDis">0</span>
-        </div>
-
-        <div class="grupo">
-            <label>Série e Turma</label>
-            <input type="text" id="alunoSerie" placeholder="Ex: 6º ano C">
-        </div>
-
-        <div class="grupo">
-            <label>Tipo da Ocorrência</label>
-            <input type="text" id="ocorrenciaTipo" placeholder="Ex: Atraso repetido / Dificuldade de aprendizagem">
-        </div>
-
-        <div class="grupo">
-            <label>Descrição Detalhada</label>
-            <textarea id="descricao" placeholder="Descreva com detalhes a situação..."></textarea>
-        </div>
-
-        <div class="grupo">
-            <label>Nome do Professor Responsável</label>
-            <input type="text" id="professorNome" placeholder="Seu nome completo">
-        </div>
-
-        <div class="grupo">
-            <label>Disciplina</label>
-            <input type="text" id="disciplina" placeholder="Ex: Português / Matemática">
-        </div>
-
-        <div class="alerta" id="alertaMsg" style="display:none;"></div>
-
-        <button class="btn btn-primario" id="btnEnviar" onclick="enviarOcorrencia()">📤 Enviar Ocorrência</button>
-    </div>
-</div>
-
-<div id="pagGestao" style="display: none;">
-    <div class="filtros">
-        <div>
-            <label>Nome do Aluno</label>
-            <input type="text" id="filtroNome" placeholder="Filtrar por nome...">
-        </div>
-        <div>
-            <label>Série/Turma</label>
-            <input type="text" id="filtroSerie" placeholder="Filtrar por série...">
-        </div>
-        <div>
-            <label>Tipo</label>
-            <select id="filtroTipo">
-                <option value="">Todos</option>
-                <option value="pedagogica">Pedagógica</option>
-                <option value="disciplinar">Disciplinar</option>
-            </select>
-        </div>
-        <div>
-            <label>Data Início</label>
-            <input type="date" id="filtroDataIni">
-        </div>
-        <div>
-            <label>Data Fim</label>
-            <input type="date" id="filtroDataFim">
-        </div>
-        <button class="btn" style="background:var(--roxo-primario); color:white; height: 46px;" onclick="aplicarFiltros()">🔍 Filtrar</button>
-    </div>
-
-    <div class="lista" id="listaOcorrencias">
-        <div style="padding:20px; text-align:center; color:var(--texto-muted);">Carregando ocorrências...</div>
-    </div>
-</div>
-
-<div class="modal" id="modalVisualizar">
-    <div class="modal-conteudo" id="conteudoImpressao"></div>
-</div>
-
+<div class="modal" id="viewModal"><div class="modal-content" id="printContent"></div></div>
 <script>
-const SUPABASE_URL = "https://jewhksbhobegdquotyzn.supabase.co";
-const SUPABASE_KEY = "sb_publishable_4s847nOt8lMyEHogp-KlnQ_1qMc-rrO";
+/* IMPORTANTE: copie estes dois valores diretamente em Supabase > Project Settings > API. */
+const SUPABASE_URL = 'https://jewhksbhobegdquotyzn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_4s847nOt8lMyEHogp-KlnQ_1qMc-rrO';
 
-let supabaseClient = null;
-let tipoSelecionado = null;
-let todasOcorrencias = [];
+let db = null;
+let selectedType = null;
+let allOccurrences = [];
+let historyTimer = null;
 
-// ---------- DIAGNÓSTICO DE AMBIENTE ----------
-// "TypeError: Failed to fetch" quase sempre é um erro de REDE, não do código:
-// o navegador nem conseguiu completar a requisição HTTP. As causas mais comuns são:
-// 1) o arquivo foi aberto direto do disco (file://) e o navegador bloqueia a chamada;
-// 2) uma extensão de bloqueio de anúncios/privacidade barrou a requisição;
-// 3) o projeto Supabase está pausado (planos gratuitos pausam após alguns dias sem uso);
-// 4) não há internet no momento do clique.
-function exibirBannerDiagnostico(mensagemHtml) {
-    const banner = document.getElementById('bannerDiagnostico');
-    banner.innerHTML = mensagemHtml;
-    banner.style.display = 'block';
-}
+const $ = id => document.getElementById(id);
+function escapeHTML(value) { return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+function showDiagnostic(html) { $('diagnostic').innerHTML = html; $('diagnostic').style.display = 'block'; }
+function showAlert(type, text) { const el = $('formAlert'); el.className = 'alert ' + type; el.textContent = text; el.style.display = 'block'; }
+function isPlaceholderConfig() { return !SUPABASE_URL || !SUPABASE_KEY || SUPABASE_URL.includes('COLE_AQUI') || SUPABASE_KEY.includes('COLE_AQUI'); }
 
-function diagnosticarAmbiente() {
+async function checkConnection() {
     if (location.protocol === 'file:') {
-        exibirBannerDiagnostico(
-            '⚠️ <strong>Este arquivo está sendo aberto direto do computador (file://).</strong> ' +
-            'Vários navegadores bloqueiam chamadas para o Supabase nesse modo, causando o erro ' +
-            '"Failed to fetch". Para resolver, hospede o arquivo (GitHub Pages, Netlify, Vercel) ' +
-            'ou rode um servidor local, por exemplo abrindo uma pasta com a extensão "Live Server" ' +
-            'do VS Code, ou rodando <code>python -m http.server</code> no terminal e acessando ' +
-            'via <code>http://localhost</code>.'
-        );
+        showDiagnostic('<strong>Abra este arquivo por um servidor web.</strong> No GitHub Pages ele deve iniciar com https://, nunca file://.');
         return;
     }
-    if (!navigator.onLine) {
-        exibirBannerDiagnostico('⚠️ Parece que este dispositivo está sem conexão com a internet no momento.');
+    if (isPlaceholderConfig()) {
+        showDiagnostic('<strong>Configure a URL e a chave do Supabase no código.</strong> Copie os valores em Project Settings → API.');
+        return;
     }
-}
-
-// Testa se o Supabase realmente responde (detecta projeto pausado/URL errada/bloqueio de rede)
-async function testarConexaoSupabase() {
-    if (location.protocol === 'file:') return; // já avisado acima
+    if (!navigator.onLine) { showDiagnostic('<strong>O dispositivo está sem conexão com a internet.</strong>'); return; }
     try {
-        const resp = await fetch(SUPABASE_URL + '/rest/v1/', {
-            method: 'GET',
-            headers: { apikey: SUPABASE_KEY }
-        });
-        // Qualquer resposta HTTP (mesmo 401/404) prova que a rede está OK.
-        if (!resp) throw new Error('sem resposta');
-    } catch (e) {
-        exibirBannerDiagnostico(
-            '⚠️ <strong>Não foi possível conectar ao Supabase</strong> (' + e.message + '). ' +
-            'Causas mais comuns: (1) o projeto Supabase está pausado — entre no ' +
-            '<a href="https://supabase.com/dashboard" target="_blank" style="color:#fde68a;">painel do Supabase</a> ' +
-            'e confirme que o projeto está ativo (projetos gratuitos pausam sozinhos após ~7 dias sem uso); ' +
-            '(2) uma extensão do navegador (bloqueador de anúncios/CORS) está barrando a requisição — tente em uma ' +
-            'aba anônima; (3) um firewall/antivírus/rede corporativa está bloqueando o domínio ' +
-            '<code>' + SUPABASE_URL.replace('https://', '') + '</code>.'
-        );
+        const response = await fetch(SUPABASE_URL + '/rest/v1/', { headers: { apikey: SUPABASE_KEY } });
+        if (!response.ok && response.status !== 401 && response.status !== 404) throw new Error('HTTP ' + response.status);
+    } catch (error) {
+        showDiagnostic('<strong>Não foi possível encontrar o projeto Supabase.</strong><br>Confira no painel se o projeto está ativo e copie novamente o Project URL. URL usada: <code>' + escapeHTML(SUPABASE_URL) + '</code><br>Detalhe: ' + escapeHTML(error.message));
     }
 }
 
-// Inicialização direta do cliente Supabase global
-try {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-} catch (e) {
-    console.error("Erro ao inicializar o Supabase:", e);
-    exibirBannerDiagnostico('⚠️ Erro ao carregar a biblioteca do Supabase: ' + e.message);
+function selectType(type) { selectedType = type; $('btnPed').classList.toggle('active', type === 'pedagogica'); $('btnDis').classList.toggle('active', type === 'disciplinar'); }
+function searchHistoryDebounced(name) { clearTimeout(historyTimer); historyTimer = setTimeout(() => searchHistory(name), 450); }
+async function searchHistory(name) {
+    const box = $('history');
+    if (!db || name.trim().length < 3) { box.classList.remove('visible'); return; }
+    try {
+        const { data, error } = await db.from('ocorrencias').select('tipo').ilike('aluno_nome', '%' + name.trim() + '%');
+        if (error) throw error;
+        let ped = 0, dis = 0; (data || []).forEach(item => item.tipo === 'pedagogica' ? ped++ : dis++);
+        $('historyTotal').textContent = (data || []).length; $('historyPed').textContent = ped; $('historyDis').textContent = dis; box.classList.add('visible');
+    } catch (error) { console.error('Erro no histórico:', error); }
 }
 
-diagnosticarAmbiente();
-testarConexaoSupabase();
-
-function selecionarTipo(tipo) {
-    tipoSelecionado = tipo;
-    document.getElementById('btnPed').classList.remove('active');
-    document.getElementById('btnDis').classList.remove('active');
-    if (tipo === 'pedagogica') document.getElementById('btnPed').classList.add('active');
-    else document.getElementById('btnDis').classList.add('active');
+async function sendOccurrence() {
+    if (!db) return showAlert('error', 'Conexão com o Supabase indisponível. Verifique a URL, a chave e o banner acima.');
+    if (!selectedType) return showAlert('error', 'Selecione o tipo de ocorrência.');
+    const record = { tipo:selectedType, aluno_nome:$('studentName').value.trim(), aluno_serie:$('studentClass').value.trim(), ocorrencia_tipo:$('occurrenceType').value.trim(), descricao:$('description').value.trim(), professor_nome:$('teacherName').value.trim(), disciplina:$('subject').value.trim(), solucao:'', assinaturas:'' };
+    if (!record.aluno_nome || !record.aluno_serie || !record.descricao || !record.professor_nome) return showAlert('error', 'Preencha Nome, Série, Descrição e Professor.');
+    const button = $('sendButton'); button.disabled = true; button.textContent = 'Enviando...';
+    try {
+        const { error } = await db.from('ocorrencias').insert(record);
+        if (error) throw error;
+        showAlert('success', '✅ Ocorrência registrada com sucesso!');
+        ['studentName','studentClass','occurrenceType','description','teacherName','subject'].forEach(id => $(id).value = ''); $('history').classList.remove('visible'); selectedType = null; selectType(''); await loadOccurrences();
+    } catch (error) { console.error(error); showAlert('error', 'Erro ao salvar: ' + error.message); }
+    finally { button.disabled = false; button.textContent = '📤 Enviar Ocorrência'; }
 }
 
-async function buscarHistorico(nome) {
-    if (!supabaseClient) return;
-    const caixa = document.getElementById('caixaHistorico');
-    if (nome.trim().length < 3) { caixa.classList.remove('visivel'); return; }
-
-    const { data, error } = await supabaseClient
-        .from('ocorrencias')
-        .select('tipo')
-        .ilike('aluno_nome', '%' + nome + '%');
-
-    if (error) return;
-    caixa.classList.add('visivel');
-    let total = data.length, ped = 0, dis = 0;
-    data.forEach(o => o.tipo === 'pedagogica' ? ped++ : dis++);
-    document.getElementById('histTotal').textContent = total;
-    document.getElementById('histPed').textContent = ped;
-    document.getElementById('histDis').textContent = dis;
+function showTab(tab) { const register = tab === 'register'; $('pageRegister').style.display = register ? 'block' : 'none'; $('pageManage').style.display = register ? 'none' : 'block'; $('tabRegister').classList.toggle('active', register); $('tabManage').classList.toggle('active', !register); if (!register) loadOccurrences(); }
+async function loadOccurrences(filters = {}) {
+    if (!db) return;
+    let query = db.from('ocorrencias').select('*').order('created_at', { ascending:false });
+    if (filters.name) query = query.ilike('aluno_nome', '%' + filters.name + '%'); if (filters.className) query = query.ilike('aluno_serie', '%' + filters.className + '%'); if (filters.type) query = query.eq('tipo', filters.type); if (filters.start) query = query.gte('created_at', filters.start + 'T00:00:00'); if (filters.end) query = query.lt('created_at', filters.end + 'T23:59:59.999');
+    const list = $('occurrenceList');
+    try {
+        const { data, error } = await query; if (error) throw error; allOccurrences = data || [];
+        if (!allOccurrences.length) { list.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted)">Nenhuma ocorrência encontrada.</div>'; return; }
+        list.innerHTML = allOccurrences.map(item => { const date = new Date(item.created_at).toLocaleDateString('pt-BR'); const type = item.tipo === 'pedagogica' ? 'Pedagógica' : 'Disciplinar'; return '<div class="item" data-id="' + escapeHTML(item.id) + '"><strong>' + date + '</strong> — ' + escapeHTML(item.aluno_nome) + ' (' + escapeHTML(item.aluno_serie) + ') <span class="tag ' + item.tipo + '">' + type + '</span><br><small>' + escapeHTML(item.ocorrencia_tipo || 'Sem tipo') + ' — ' + escapeHTML(item.professor_nome || 'Professor não informado') + '</small></div>'; }).join('');
+        list.querySelectorAll('.item').forEach(item => item.addEventListener('click', () => openView(item.dataset.id)));
+    } catch (error) { list.innerHTML = '<div style="padding:30px;text-align:center;color:#f87171">Erro ao carregar: ' + escapeHTML(error.message) + '</div>'; }
 }
+function applyFilters() { loadOccurrences({ name:$('filterName').value.trim(), className:$('filterClass').value.trim(), type:$('filterType').value, start:$('filterStart').value, end:$('filterEnd').value }); }
 
-function mostrarAlerta(tipo, texto) {
-    const alerta = document.getElementById('alertaMsg');
-    alerta.className = 'alerta ' + tipo;
-    alerta.style.display = 'block';
-    alerta.innerHTML = texto;
+async function openView(id) {
+    const occurrence = allOccurrences.find(item => String(item.id) === String(id)); if (!occurrence || !db) return;
+    let history = []; try { const result = await db.from('ocorrencias').select('tipo').ilike('aluno_nome', '%' + occurrence.aluno_nome + '%'); history = result.data || []; } catch (error) { console.error(error); }
+    const ped = history.filter(item => item.tipo === 'pedagogica').length, dis = history.filter(item => item.tipo === 'disciplinar').length;
+    $('printContent').innerHTML = '<h2 style="text-align:center;margin-bottom:25px">REGISTRO DE OCORRÊNCIA ESCOLAR</h2><p><strong>Data:</strong> ' + new Date(occurrence.created_at).toLocaleDateString('pt-BR') + '</p><p><strong>Tipo:</strong> ' + (occurrence.tipo === 'pedagogica' ? '📘 Pedagógica' : '⚠️ Disciplinar') + '</p><p><strong>Nome do Aluno:</strong> ' + escapeHTML(occurrence.aluno_nome) + '</p><p><strong>Série/Turma:</strong> ' + escapeHTML(occurrence.aluno_serie) + '</p><p><strong>Histórico:</strong> Total: ' + history.length + ' | Pedagógicas: ' + ped + ' | Disciplinares: ' + dis + '</p><p><strong>Tipo da Ocorrência:</strong> ' + escapeHTML(occurrence.ocorrencia_tipo || 'Não informado') + '</p><p style="margin-top:10px"><strong>Descrição:</strong></p><p style="white-space:pre-wrap;background:rgba(0,0,0,.2);padding:12px;border-radius:8px;margin-top:5px">' + escapeHTML(occurrence.descricao) + '</p><p style="margin-top:10px"><strong>Professor:</strong> ' + escapeHTML(occurrence.professor_nome) + '</p><p><strong>Disciplina:</strong> ' + escapeHTML(occurrence.disciplina || 'Não informada') + '</p><hr style="margin:20px 0"><p><strong>✍️ Providência / Solução:</strong></p><textarea id="solution" style="margin-top:5px">' + escapeHTML(occurrence.solucao) + '</textarea><p style="margin-top:10px"><strong>🖋️ Observações / Assinaturas:</strong></p><textarea id="signatures" style="height:80px;margin-top:5px">' + escapeHTML(occurrence.assinaturas) + '</textarea><div class="signatures"><div class="signature">Professor</div><div class="signature">Coordenador(a)</div><div class="signature">Responsável</div></div><div class="modal-buttons no-print"><button class="btn" style="background:#10b981;color:#fff" id="saveButton">💾 Salvar</button><button class="btn" style="background:#3b82f6;color:#fff" onclick="window.print()">🖨️ Imprimir</button><button class="btn" style="background:#374151;color:#fff" onclick="closeModal()">Fechar</button></div>';
+    $('saveButton').addEventListener('click', () => saveSolution(occurrence.id)); $('viewModal').classList.add('open');
 }
+async function saveSolution(id) { try { const { error } = await db.from('ocorrencias').update({ solucao:$('solution').value, assinaturas:$('signatures').value }).eq('id', id); if (error) throw error; alert('✅ Salvo com sucesso!'); } catch (error) { alert('❌ Erro ao salvar: ' + error.message); } }
+function closeModal() { $('viewModal').classList.remove('open'); }
+$('viewModal').addEventListener('click', event => { if (event.target.id === 'viewModal') closeModal(); });
 
-async function enviarOcorrencia() {
-    if (!supabaseClient) {
-        mostrarAlerta('erro', '⚠️ Conexão com o Supabase indisponível.');
-        return;
-    }
-
-    if (!tipoSelecionado) {
-        mostrarAlerta('erro', '⚠️ Selecione o tipo de ocorrência!');
-        return;
-    }
-
-    const dados = {
-        tipo: tipoSelecionado,
-        aluno_nome: document.getElementById('alunoNome').value.trim(),
-        aluno_serie: document.getElementById('alunoSerie').value.trim(),
-        ocorrencia_tipo: document.getElementById('ocorrenciaTipo').value.trim(),
-        descricao: document.getElementById('descricao').value.trim(),
-        professor_nome: document.getElementById('professorNome').value.trim(),
-        disciplina: document.getElementById('disciplina').value.trim(),
-        solucao: '',
-        assinaturas: ''
-    };
-
-    if (!dados.aluno_nome || !dados.aluno_serie || !dados.descricao || !dados.professor_nome) {
-        mostrarAlerta('erro', '⚠️ Preencha todos os campos obrigatórios (Nome, Série, Descrição e Professor)!');
-        return;
-    }
-
-    const btn = document.getElementById('btnEnviar');
-    btn.disabled = true;
-    btn.textContent = 'Enviando...';
-
-    const { error } = await supabaseClient.from('ocorrencias').insert([dados]);
-
-    btn.disabled = false;
-    btn.textContent = '📤 Enviar Ocorrência';
-
-    if (error) {
-        const ehFalhaDeRede = /failed to fetch/i.test(error.message || '');
-        mostrarAlerta('erro',
-            '❌ Erro ao salvar: ' + error.message +
-            (ehFalhaDeRede
-                ? '<br><small>Isso é uma falha de rede, não do formulário. Veja o aviso amarelo no topo da página para as causas mais prováveis.</small>'
-                : '')
-        );
-    } else {
-        mostrarAlerta('sucesso', '✅ Ocorrência registrada com sucesso!');
-        document.getElementById('alunoNome').value = '';
-        document.getElementById('alunoSerie').value = '';
-        document.getElementById('ocorrenciaTipo').value = '';
-        document.getElementById('descricao').value = '';
-        document.getElementById('professorNome').value = '';
-        document.getElementById('disciplina').value = '';
-        document.getElementById('caixaHistorico').classList.remove('visivel');
-        document.getElementById('btnPed').classList.remove('active');
-        document.getElementById('btnDis').classList.remove('active');
-        tipoSelecionado = null;
-        carregarLista();
-    }
-}
-
-function mostrarAba(nome) {
-    document.getElementById('pagRegistro').style.display = nome === 'registro' ? 'block' : 'none';
-    document.getElementById('pagGestao').style.display = nome === 'gestao' ? 'block' : 'none';
-    document.getElementById('abaRegistro').classList.toggle('active', nome === 'registro');
-    document.getElementById('abaGestao').classList.toggle('active', nome === 'gestao');
-    if (nome === 'gestao') carregarLista();
-}
-
-async function carregarLista(filtros = {}) {
-    if (!supabaseClient) return;
-    let query = supabaseClient.from('ocorrencias').select('*').order('created_at', { ascending: false });
-
-    if (filtros.nome) query = query.ilike('aluno_nome', '%' + filtros.nome + '%');
-    if (filtros.serie) query = query.ilike('aluno_serie', '%' + filtros.serie + '%');
-    if (filtros.tipo) query = query.eq('tipo', filtros.tipo);
-    if (filtros.dataIni) query = query.gte('created_at', filtros.dataIni + 'T00:00:00');
-    if (filtros.dataFim) query = query.lte('created_at', filtros.dataFim + 'T23:59:59');
-
-    const { data, error } = await query;
-    const lista = document.getElementById('listaOcorrencias');
-
-    if (error) {
-        lista.innerHTML = '<div style="padding:30px; text-align:center; color:#f87171;">Erro ao carregar: ' + error.message + '</div>';
-        return;
-    }
-
-    if (!data || !data.length) {
-        lista.innerHTML = '<div style="padding:30px; text-align:center; color:var(--texto-muted);">Nenhuma ocorrência encontrada.</div>';
-        return;
-    }
-
-    todasOcorrencias = data;
-    lista.innerHTML = data.map(o => {
-        const dataBr = new Date(o.created_at).toLocaleDateString('pt-BR');
-        const tagClass = o.tipo === 'pedagogica' ? 'pedagogica' : 'disciplinar';
-        const tagTexto = o.tipo === 'pedagogica' ? 'Pedagógica' : 'Disciplinar';
-        return `
-            <div class="item" onclick="abrirVisualizacao('${o.id}')">
-                <strong>${dataBr}</strong> — ${o.aluno_nome} (${o.aluno_serie})
-                <span class="tag ${tagClass}">${tagTexto}</span><br>
-                <small>${o.ocorrencia_tipo || 'Sem tipo'} — ${o.professor_nome || 'Professor não informado'}</small>
-            </div>
-        `;
-    }).join('');
-}
-
-function aplicarFiltros() {
-    carregarLista({
-        nome: document.getElementById('filtroNome').value.trim(),
-        serie: document.getElementById('filtroSerie').value.trim(),
-        tipo: document.getElementById('filtroTipo').value,
-        dataIni: document.getElementById('filtroDataIni').value,
-        dataFim: document.getElementById('filtroDataFim').value
-    });
-}
-
-async function abrirVisualizacao(id) {
-    if (!supabaseClient) return;
-    const ocorrencia = todasOcorrencias.find(o => o.id === id);
-    if (!ocorrencia) return;
-
-    const { data: historico } = await supabaseClient
-        .from('ocorrencias').select('tipo').ilike('aluno_nome', '%' + ocorrencia.aluno_nome + '%');
-
-    let total = historico ? historico.length : 0, ped = 0, dis = 0;
-    if (historico) historico.forEach(h => h.tipo === 'pedagogica' ? ped++ : dis++);
-
-    const dataBr = new Date(ocorrencia.created_at).toLocaleDateString('pt-BR');
-    const tagTexto = ocorrencia.tipo === 'pedagogica' ? '📘 Pedagógica' : '⚠️ Disciplinar';
-
-    document.getElementById('conteudoImpressao').innerHTML = `
-        <h2 style="text-align:center; margin-bottom:25px; color:var(--texto);">REGISTRO DE OCORRÊNCIA ESCOLAR</h2>
-        <p><strong>Data:</strong> ${dataBr}</p>
-        <p><strong>Tipo:</strong> ${tagTexto}</p>
-        <p><strong>Nome do Aluno:</strong> ${ocorrencia.aluno_nome}</p>
-        <p><strong>Série/Turma:</strong> ${ocorrencia.aluno_serie}</p>
-        <p><strong>Histórico do aluno:</strong> Total: ${total} | Pedagógicas: ${ped} | Disciplinares: ${dis}</p>
-        <p><strong>Tipo da Ocorrência:</strong> ${ocorrencia.ocorrencia_tipo || 'Não informado'}</p>
-        <p style="margin-top:10px;"><strong>Descrição:</strong></p>
-        <p style="white-space: pre-wrap; background:rgba(0,0,0,0.2); padding:12px; border-radius:8px; border:1px solid var(--borda); margin-top:5px;">${ocorrencia.descricao}</p>
-        <p style="margin-top:10px;"><strong>Professor Responsável:</strong> ${ocorrencia.professor_nome}</p>
-        <p><strong>Disciplina:</strong> ${ocorrencia.disciplina || 'Não informada'}</p>
-        <hr style="margin:20px 0; border:1px solid var(--borda);">
-        <p><strong>✍️ Providência / Solução:</strong></p>
-        <textarea id="campoSolucao" style="margin-top:5px;">${ocorrencia.solucao || ''}</textarea>
-        <p style="margin-top:10px;"><strong>🖋️ Observações / Assinaturas:</strong></p>
-        <textarea id="campoAssinaturas" style="height:80px; margin-top:5px;" placeholder="Professor, Coordenador, Responsável...">${ocorrencia.assinaturas || ''}</textarea>
-        <div class="assinaturas">
-            <div class="campo-assinatura">Professor</div>
-            <div class="campo-assinatura">Coordenador(a)</div>
-            <div class="campo-assinatura">Responsável</div>
-        </div>
-        <div class="botoes-modal sem-imprimir">
-            <button class="btn" style="background:#10b981; color:white;" onclick="salvarSolucao('${id}')">💾 Salvar Solução e Assinaturas</button>
-            <button class="btn btn-imprimir" onclick="imprimir()">🖨️ Imprimir</button>
-            <button class="btn btn-fechar" onclick="fecharModal()">Fechar</button>
-        </div>
-    `;
-
-    document.getElementById('modalVisualizar').classList.add('aberto');
-}
-
-async function salvarSolucao(id) {
-    if (!supabaseClient) return;
-    const solucao = document.getElementById('campoSolucao').value;
-    const assinaturas = document.getElementById('campoAssinaturas').value;
-
-    const { error } = await supabaseClient
-        .from('ocorrencias')
-        .update({ solucao: solucao, assinaturas: assinaturas })
-        .eq('id', id);
-
-    if (error) alert('❌ Erro ao salvar: ' + error.message);
-    else alert('✅ Salvo com sucesso!');
-}
-
-function imprimir() { window.print(); }
-function fecharModal() { document.getElementById('modalVisualizar').classList.remove('aberto'); }
-
-document.getElementById('modalVisualizar').addEventListener('click', e => {
-    if (e.target.id === 'modalVisualizar') fecharModal();
-});
+(function init() {
+    try { if (!window.supabase || typeof window.supabase.createClient !== 'function') throw new Error('Biblioteca do Supabase não carregada.'); db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch (error) { showDiagnostic('<strong>Erro ao carregar o Supabase:</strong> ' + escapeHTML(error.message)); }
+    checkConnection();
+})();
 </script>
 </body>
 </html>
